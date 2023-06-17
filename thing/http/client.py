@@ -48,6 +48,12 @@ class HTTPClient:
 
         await self._http.close()
 
+    async def __aenter__(self):
+        return self
+    
+    async def __aexit__(self, *_):
+        await self.close()
+
     async def request(
         self,
         route: Route,
