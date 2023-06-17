@@ -20,12 +20,11 @@ def _get_base_url():
     return BASE_API_URL.format(API_VERSION)
 
 class HTTPClient:
-    def __init__(self, default_auth: Auth, *, bucket_lag: float = 0.2, compare_reset_afters: bool = False):
+    def __init__(self, default_auth: Auth, *, bucket_lag: float = 0.2):
         self._http: t.Optional[aiohttp.ClientSession] = None
         self._default_headers: dict[str, str] = {"User-Agent": _get_user_agent(), "Authorization": default_auth.header}
         self._base_url = _get_base_url()
         self._default_bucket_lag = bucket_lag
-        self._default_compare_reset_afters = compare_reset_afters
         # (local bucket, discord bucket) -> Bucket
         self._buckets: dict[tuple[str, t.Optional[str]], Bucket] = {}
         self._global_bucket: GlobalBucket = GlobalBucket(bucket_lag)
@@ -53,7 +52,7 @@ class HTTPClient:
         bucket = self._buckets.get(key)
 
         if not bucket:
-            bucket = Bucket(self._default_bucket_lag, self._default_compare_reset_afters)
+            bucket = Bucket(self._default_bucket_lag)
             self._buckets[key] = bucket
 
         return bucket
@@ -106,7 +105,10 @@ class HTTPClient:
                             
                             if 500 > resp.status >= 400:
                                 if resp.status == 429:
-                                    continue
+                                    print("429 :(")
+                                    self._global_bucket.update_from(resp)
+                                    self._global_bucket.lock_for(self._global_bucket.reset_after)
+                                    await self._global_bucket.acquire()
 
                                 raise Exception(await resp.text())
                             

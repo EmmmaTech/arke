@@ -48,10 +48,8 @@ class BucketMigrated(Exception):
         super().__init__(f"Bucket {old} has migrated to {new}.")
 
 class Bucket(BaseBucket):
-    def __init__(self, lag: float = 0.2, compare_reset_afters: bool = False):
+    def __init__(self, lag: float = 0.2):
         super().__init__(lag)
-
-        self.compare_reset_afters: bool = compare_reset_afters
 
         self.limit: int = 1
         self.remaining: int = 1
@@ -92,15 +90,8 @@ class Bucket(BaseBucket):
             self.reset = x_reset
 
         x_reset_after: float = float(headers["X-RateLimit-Reset-After"])
-        if x_reset_after != self.reset_after:
-            if self.compare_reset_afters:
-                current_timestamp = datetime.datetime.now(tz=datetime.timezone.utc).timestamp()
-                calculated_reset_after = current_timestamp - self.reset.timestamp()
-                if calculated_reset_after > 0:
-                    self.reset_after = min(calculated_reset_after, x_reset_after)
-            else:
-                self.reset_after = x_reset_after
-
+        if x_reset_after > self.reset_after:
+            self.reset_after = x_reset_after
             self.reset_after += self.lag
 
     def migrate_to(self, new: str):
@@ -111,6 +102,8 @@ class Bucket(BaseBucket):
         if self.remaining == 0:
             # log debug "Bucket {self.bucket} will be auto-locked."
             self.lock_for(self.reset_after)
+            # prevent the bucket from being locked again until after we actually make a request
+            self.remaining = 1
 
         await super().acquire()
 
