@@ -66,6 +66,9 @@ class HTTPClient:
         query: t.Optional[dict[str, str]] = None,
         headers: t.Optional[dict[str, str]] = None,
     ):
+        if route.method == "GET" and json:
+            raise TypeError("json parameter cannot be mixed with GET method!")
+
         params: dict[str, t.Any] = {}
 
         if json:
@@ -78,8 +81,7 @@ class HTTPClient:
             params["headers"] = headers
 
         local_bucket = route.bucket
-        discord_bucket: t.Optional[str] = None
-        bucket = self._get_bucket((local_bucket, discord_bucket))
+        bucket = self._get_bucket((local_bucket, None))
 
         MAX_RETRIES = 5
 
