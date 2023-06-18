@@ -4,6 +4,7 @@ import aiohttp
 import asyncio
 import typing as t
 
+from ..internal.json import JSONObject, JSONArray
 from .auth import Auth
 from .ratelimit import Bucket, Lock, BucketMigrated
 from .route import Route
@@ -62,7 +63,7 @@ class HTTPClient:
         self,
         route: Route,
         *, 
-        json: t.Optional[t.Any] = None,
+        json: t.Optional[JSONObject | JSONArray] = None,
         query: t.Optional[dict[str, str]] = None,
         headers: t.Optional[dict[str, str]] = None,
     ):
