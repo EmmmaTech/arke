@@ -5,7 +5,7 @@ import asyncio
 import typing as t
 
 from .auth import Auth
-from .ratelimit import Bucket, GlobalBucket, BucketMigrated
+from .ratelimit import Bucket, Lock, BucketMigrated
 from .route import Route
 
 __all__ = ("Route", "HTTPClient",)
@@ -27,7 +27,8 @@ class HTTPClient:
         self._default_bucket_lag = bucket_lag
         # (local bucket, discord bucket) -> Bucket
         self._buckets: dict[tuple[str, t.Optional[str]], Bucket] = {}
-        self._global_bucket: GlobalBucket = GlobalBucket(bucket_lag)
+        self._global_lock: Lock = Lock()
+        self._global_lock.set()
 
     async def __aenter__(self):
         return self
@@ -84,8 +85,8 @@ class HTTPClient:
 
         for try_ in range(MAX_RETRIES):
             try:
-                async with self._global_bucket:
-                    # log debug "The global bucket has been acquired."
+                async with self._global_lock:
+                    # log debug "The global lock has been acquired."
                     async with bucket:
                         # log debug "The local bucket has been acquired."
                         async with self.http.request(
@@ -103,19 +104,27 @@ class HTTPClient:
                                 content = await resp.text()
                                 return (content, resp.content_type)
                             
-                            if 500 > resp.status >= 400:
-                                if resp.status == 429:
-                                    print("429 :(")
-                                    self._global_bucket.update_from(resp)
-                                    self._global_bucket.lock_for(self._global_bucket.reset_after)
-                                    await self._global_bucket.acquire()
+                            if resp.status == 429:
+                                is_global = bool(resp.headers.get("X-RateLimit-Global", False))
+                                retry_after = float(resp.headers["Retry-After"])
 
+                                if is_global:
+                                    self._global_lock.lock_for(retry_after)
+                                    await self._global_lock.wait()
+                                else:
+                                    bucket.lock_for(retry_after)
+                                    await bucket.acquire(auto_lock=False)
+
+                                continue
+
+                            if 500 > resp.status >= 400:
                                 raise Exception(await resp.text())
-                            
+ 
                             if 600 > resp.status >= 500:
                                 if resp.status in (500, 502):
                                     await asyncio.sleep(2 * try_ + 1)
                                 raise Exception(resp.status)
+
             except BucketMigrated as e:
                 # log debug "Our bucket {e.old} has migrated to {e.new}."
                 bucket = self._get_bucket((local_bucket, e.new))

@@ -3,43 +3,7 @@ import asyncio
 import datetime
 import typing as t
 
-__all__ = ("BucketMigrated", "Bucket", "GlobalBucket",)
-
-class BaseBucket:
-    def __init__(self, lag: float = 0.2):
-        self.lag: float = lag
-
-        self.bucket: str = ""
-        self.reset_after: float = 0.0
-        self._lock: asyncio.Event = asyncio.Event()
-        self._lock.set()
-
-    def update_from(self, response: aiohttp.ClientResponse):
-        pass
-
-    def lock_for(self, time: float):
-        if not self._lock.is_set():
-            return
-
-        print(f"Bucket {self.bucket} will be locked for {time} seconds.")
-        self._lock.clear()
-        asyncio.create_task(self._unlock(time))
-
-    async def _unlock(self, time: float):
-        await asyncio.sleep(time)
-        print(f"Bucket {self.bucket} will be unlocked.")
-        self._lock.set()
-
-    async def acquire(self):
-        await self._lock.wait()
-        # log debug "Bucket {self.bucket} has been acquired!"
-
-    async def __aenter__(self):
-        await self.acquire()
-        return self
-    
-    async def __aexit__(self, *_):
-        pass
+__all__ = ("BucketMigrated", "Lock", "Bucket",)
 
 class BucketMigrated(Exception):
     def __init__(self, old: str, new: str):
@@ -47,15 +11,45 @@ class BucketMigrated(Exception):
         self.new: str = new
         super().__init__(f"Bucket {old} has migrated to {new}.")
 
-class Bucket(BaseBucket):
-    def __init__(self, lag: float = 0.2):
-        super().__init__(lag)
+class Lock(asyncio.Event):
+    async def __aenter__(self):
+        await self.wait()
+        return self
 
+    async def __aexit__(self, *_):
+        pass
+
+    def lock_for(self, time: float):
+        if not self.is_set():
+            return
+
+        self.clear()
+        asyncio.create_task(self._unlock(time))
+
+    async def _unlock(self, time: float):
+        await asyncio.sleep(time)
+        self.set()
+
+class Bucket:
+    def __init__(self, lag: float = 0.2):
+        self.lag: float = lag
+
+        self.bucket: str = ""
+        self.reset_after: float = 0.0
+        self._lock: Lock = Lock()
+        self._lock.set()
         self.limit: int = 1
         self.remaining: int = 1
         self.reset: t.Optional[datetime.datetime] = None
         self.bucket: str = ""
         self.enabled: bool = True
+
+    async def __aenter__(self):
+        await self.acquire()
+        return self
+    
+    async def __aexit__(self, *_):
+        pass
 
     def update_from(self, response: aiohttp.ClientResponse):
         headers = response.headers
@@ -98,26 +92,19 @@ class Bucket(BaseBucket):
         self.enabled = False
         raise BucketMigrated(self.bucket, new)
 
-    async def acquire(self):
-        if self.remaining == 0:
+    def lock_for(self, time: float):
+        if not self._lock.is_set():
+            return
+
+        print(f"Bucket {self.bucket} will be locked for {time} seconds.")
+        self._lock.lock_for(time)
+
+    async def acquire(self, *, auto_lock: bool = True):
+        if self.remaining == 0 and auto_lock:
             # log debug "Bucket {self.bucket} will be auto-locked."
             self.lock_for(self.reset_after)
             # prevent the bucket from being locked again until after we actually make a request
             self.remaining = 1
 
-        await super().acquire()
-
-class GlobalBucket(BaseBucket):
-    def __init__(self, lag: float = 0.2):
-        super().__init__(lag)
-
-        self.bucket = "GLOBAL"
-
-    def update_from(self, response: aiohttp.ClientResponse):
-        headers = response.headers
-
-        if not headers.get("X-RateLimit-Global", False):
-            # log debug "This ratelimit is not globally applied."
-            return
-
-        self.reset_after: float = float(headers["Retry-After"]) + self.lag
+        await self._lock.wait()
+        # log debug "Bucket {self.bucket} has been acquired!"
