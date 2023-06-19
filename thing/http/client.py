@@ -6,6 +6,7 @@ import typing as t
 
 from ..internal.json import JSONObject, JSONArray
 from .auth import Auth
+from .errors import HTTPException
 from .ratelimit import Bucket, Lock, BucketMigrated
 from .route import Route
 
@@ -121,12 +122,14 @@ class HTTPClient:
                                 continue
 
                             if 500 > resp.status >= 400:
-                                raise Exception(await resp.text())
+                                msg = await resp.text()
+                                raise HTTPException(msg, resp.status, resp.reason)
  
                             if 600 > resp.status >= 500:
                                 if resp.status in (500, 502):
                                     await asyncio.sleep(2 * try_ + 1)
-                                raise Exception(resp.status)
+                                    continue
+                                raise HTTPException(None, resp.status, resp.reason)
 
             except BucketMigrated as e:
                 # log debug "Our bucket {e.old} has migrated to {e.new}."
