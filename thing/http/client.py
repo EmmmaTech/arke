@@ -77,7 +77,7 @@ class HTTPClient:
             params["json"] = json
 
         if query:
-            params["query"] = query
+            params["params"] = query
 
         if headers:
             params["headers"] = headers
