@@ -1,7 +1,5 @@
 import typing as t
 
-from ..internal import json
-
 __all__ = ("HTTPException",)
 
 def _flatten_error_dict(d: dict[str, t.Any], *, parent: str = ""):
@@ -22,14 +20,14 @@ class HTTPException(Exception):
         error_msg = f"{status} {status_msg}"
 
         # TODO: use discord_typings for more precise typing here
-        if isinstance(msg, json.JSONObject):
+        if isinstance(msg, dict):
             error_dict = _flatten_error_dict(msg)
 
             if len(error_dict) == 1 and "" in error_dict:
                 error_msg += f" {error_dict['']}"
             else:
                 for k, v in error_dict.items():
-                    error_msg += f"\n\nIn {k}:\n{v}"
+                    error_msg += f"\n\nIn {k}:\n{v['message']}"
         elif msg is not None:
             error_msg += f"\n{msg}"
 
