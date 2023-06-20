@@ -15,3 +15,19 @@ JSONArrayT = t.Sequence[JSONPrimitiveT[T]]
 JSONPrimitive = JSONObjectT["JSONPrimitiveT"] | JSONArrayT["JSONPrimitiveT"]
 JSONObject = JSONObjectT[JSONPrimitive]
 JSONArray = JSONArrayT[JSONPrimitive]
+
+load_json: t.Callable[[str], t.Any]
+dump_json: t.Callable[[t.Any], str]
+
+try:
+    # fastest option will be loaded by default
+    import orjson
+
+    load_json = orjson.loads
+    dump_json = lambda __obj: orjson.dumps(__obj).decode()
+except ImportError:
+    # load from the stdlib
+    import json
+
+    load_json = json.loads
+    dump_json = json.dumps

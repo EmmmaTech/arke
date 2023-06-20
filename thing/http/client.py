@@ -5,13 +5,13 @@ import asyncio
 import logging
 import typing as t
 
-from ..internal.json import JSONObject, JSONArray
+from ..internal.json import JSONObject, JSONArray, load_json
 from .auth import Auth
 from .errors import HTTPException
 from .ratelimit import Bucket, Lock, BucketMigrated
 from .route import Route
 
-__all__ = ("Route", "HTTPClient",)
+__all__ = ("Route", "HTTPClient", "json_or_text",)
 
 _log = logging.getLogger(__name__)
 
@@ -140,3 +140,13 @@ class HTTPClient:
 
         _log.error("Tried to make request to %s with method %s %d times.", route.formatted_url, route.method, MAX_RETRIES)
         return (None, "")
+
+def json_or_text(resp: tuple[str | None, str]) -> str | JSONObject | JSONArray | None:
+    content_type = resp[1].lower()
+
+    if resp[0] and content_type == "":
+        if content_type == "application/json":
+            return load_json(resp[0])
+        return resp[0]
+
+    return None
