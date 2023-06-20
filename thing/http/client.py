@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import aiohttp
 import asyncio
+import logging
 import typing as t
 
 from ..internal.json import JSONObject, JSONArray
@@ -11,6 +12,8 @@ from .ratelimit import Bucket, Lock, BucketMigrated
 from .route import Route
 
 __all__ = ("Route", "HTTPClient",)
+
+_log = logging.getLogger(__name__)
 
 BASE_API_URL = "https://discord.com/api/v{0}"
 API_VERSION = 10
@@ -90,9 +93,9 @@ class HTTPClient:
         for try_ in range(MAX_RETRIES):
             try:
                 async with self._global_lock:
-                    # log debug "The global lock has been acquired."
+                    _log.debug("The global lock has been acquired.")
                     async with bucket:
-                        # log debug "The local bucket has been acquired."
+                        _log.debug("The local bucket has been acquired.")
                         async with self.http.request(
                             route.method, 
                             self._base_url + route.formatted_url, 
@@ -132,8 +135,8 @@ class HTTPClient:
                                 raise HTTPException(None, resp.status, resp.reason)
 
             except BucketMigrated as e:
-                # log debug "Our bucket {e.old} has migrated to {e.new}."
+                _log.debug("Our bucket %s has migrated to %s.", e.old, e.new)
                 bucket = self._get_bucket((local_bucket, e.new))
 
-        # log error "Tried to make request to {route.formatted_url} with method {route.method} {MAX_RETRIES} times."
+        _log.error("Tried to make request to %s with method %s %d times.", route.formatted_url, route.method, MAX_RETRIES)
         return (None, "")

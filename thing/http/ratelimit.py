@@ -1,9 +1,12 @@
 import aiohttp
 import asyncio
 import datetime
+import logging
 import typing as t
 
 __all__ = ("BucketMigrated", "Lock", "Bucket",)
+
+_log = logging.getLogger(__name__)
 
 class BucketMigrated(Exception):
     def __init__(self, old: str, new: str):
@@ -56,7 +59,7 @@ class Bucket:
 
         x_bucket: t.Optional[str] = headers.get("X-RateLimit-Bucket")
         if x_bucket is None:
-            # log debug "Ratelimiting is not supported for this bucket."
+            _log.debug("Ratelimiting is not supported for this bucket.")
             self.enabled = False
             return
         
@@ -68,7 +71,7 @@ class Bucket:
         # from here on, the route has ratelimits
 
         if headers.get("X-RateLimit-Global", False):
-            # log debug "This ratelimit is globally applied."
+            _log.debug("This ratelimit is globally applied.")
             return
         
         x_limit: int = int(headers["X-RateLimit-Limit"])
@@ -96,15 +99,15 @@ class Bucket:
         if not self._lock.is_set():
             return
 
-        print(f"Bucket {self.bucket} will be locked for {time} seconds.")
+        _log.debug("Bucket %s will be locked for %f seconds.", self.bucket, time)
         self._lock.lock_for(time)
 
     async def acquire(self, *, auto_lock: bool = True):
         if self.remaining == 0 and auto_lock:
-            # log debug "Bucket {self.bucket} will be auto-locked."
+            _log.debug("Bucket %s will be auto-locked.", self.bucket)
             self.lock_for(self.reset_after)
             # prevent the bucket from being locked again until after we actually make a request
             self.remaining = 1
 
         await self._lock.wait()
-        # log debug "Bucket {self.bucket} has been acquired!"
+        _log.debug("Bucket %s has been acquired!", self.bucket)
