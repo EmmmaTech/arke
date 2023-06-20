@@ -110,7 +110,7 @@ class HTTPClient:
 
                                 content = await resp.text()
                                 return (content, resp.content_type)
-                            
+
                             if resp.status == 429:
                                 is_global = bool(resp.headers.get("X-RateLimit-Global", False))
                                 retry_after = float(resp.headers["Retry-After"])
@@ -122,12 +122,13 @@ class HTTPClient:
                                     bucket.lock_for(retry_after)
                                     await bucket.acquire(auto_lock=False)
 
-                                continue
+                                continue                                
 
                             if 500 > resp.status >= 400:
-                                msg = await resp.text()
-                                raise HTTPException(msg, resp.status, resp.reason)
- 
+                                raw_content = await resp.text()
+                                content = json_or_text(raw_content, resp.content_type)
+                                raise HTTPException(content, resp.status, resp.reason)
+
                             if 600 > resp.status >= 500:
                                 if resp.status in (500, 502):
                                     await asyncio.sleep(2 * try_ + 1)
@@ -141,12 +142,12 @@ class HTTPClient:
         _log.error("Tried to make request to %s with method %s %d times.", route.formatted_url, route.method, MAX_RETRIES)
         return (None, "")
 
-def json_or_text(resp: tuple[str | None, str]) -> str | JSONObject | JSONArray | None:
-    content_type = resp[1].lower()
+def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
+    content_type = content_type.lower()
 
-    if resp[0] and content_type == "":
+    if content and content_type == "":
         if content_type == "application/json":
-            return load_json(resp[0])
-        return resp[0]
+            return load_json(content)
+        return content
 
     return None
