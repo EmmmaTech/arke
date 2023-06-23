@@ -109,7 +109,7 @@ class HTTPClient:
                                     return (None, "")
 
                                 content = await resp.text()
-                                return (content, resp.content_type)
+                                return json_or_text(content, resp.content_type)
 
                             if resp.status == 429:
                                 is_global = bool(resp.headers.get("X-RateLimit-Global", False))
