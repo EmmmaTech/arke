@@ -16,8 +16,8 @@ JSONPrimitive = JSONObjectT["JSONPrimitiveT"] | JSONArrayT["JSONPrimitiveT"]
 JSONObject = JSONObjectT[JSONPrimitive]
 JSONArray = JSONArrayT[JSONPrimitive]
 
-load_json: t.Callable[[str], t.Any]
-dump_json: t.Callable[[t.Any], str]
+load_json: t.Callable[[str], JSONObject | JSONArray]
+dump_json: t.Callable[[JSONObject | JSONArray], str]
 
 try:
     # fastest option will be loaded by default
