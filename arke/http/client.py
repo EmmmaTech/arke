@@ -106,7 +106,7 @@ class HTTPClient:
 
                             if 300 > resp.status >= 200:
                                 if resp.status == 204:
-                                    return (None, "")
+                                    return
 
                                 content = await resp.text()
                                 return json_or_text(content, resp.content_type)
@@ -145,7 +145,7 @@ class HTTPClient:
 def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
     content_type = content_type.lower()
 
-    if content and content_type == "":
+    if content and content_type != "":
         if content_type == "application/json":
             return load_json(content)
         return content
