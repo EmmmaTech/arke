@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 
 import aiohttp
 import asyncio
@@ -30,8 +31,8 @@ class HTTPClient:
         self._default_headers: dict[str, str] = {"User-Agent": _get_user_agent(), "Authorization": default_auth.header}
         self._base_url = _get_base_url()
         self._default_bucket_lag = bucket_lag
-        # (local bucket, discord bucket) -> Bucket
-        self._buckets: dict[tuple[str, t.Optional[str]], Bucket] = {}
+        self._local_to_discord: dict[str, str] = {}
+        self._buckets: dict[str, Bucket] = {}
         self._global_lock: Lock = Lock()
         self._global_lock.set()
 
@@ -54,10 +55,18 @@ class HTTPClient:
 
         await self._http.close()
 
-    def _get_bucket(self, key: tuple[str, t.Optional[str]]):
+    @t.overload
+    def _get_bucket(self, key: str, *, autocreate: t.Literal[True] = True) -> Bucket:
+        pass
+
+    @t.overload
+    def _get_bucket(self, key: str, *, autocreate: t.Literal[False]) -> t.Optional[Bucket]:
+        pass
+
+    def _get_bucket(self, key: str, *, autocreate: bool = True):
         bucket = self._buckets.get(key)
 
-        if not bucket:
+        if not bucket and autocreate:
             bucket = Bucket(self._default_bucket_lag)
             self._buckets[key] = bucket
 
@@ -86,69 +95,81 @@ class HTTPClient:
             params["headers"] = headers
 
         local_bucket = route.bucket
-        bucket = self._get_bucket((local_bucket, None))
+        discord_hash = self._local_to_discord.get(local_bucket)
+
+        key = local_bucket
+        if discord_hash:
+            key = f"{discord_hash}:{local_bucket}"
+
+        bucket = self._get_bucket(key)
 
         MAX_RETRIES = 5
 
         for try_ in range(MAX_RETRIES):
-            try:
-                async with self._global_lock:
-                    _log.debug("The global lock has been acquired.")
-                    async with bucket:
-                        _log.debug("The local bucket has been acquired.")
-                        async with self.http.request(
-                            route.method, 
-                            self._base_url + route.formatted_url, 
-                            **params
-                        ) as resp:
-                            bucket.update_from(resp)
+            async with self._global_lock:
+                _log.debug("The global lock has been acquired.")
+                async with bucket:
+                    _log.debug("The local bucket has been acquired.")
+                    async with self.http.request(
+                        route.method, 
+                        self._base_url + route.formatted_url, 
+                        **params
+                    ) as resp:
+                        bucket.update_from(resp)
+
+                        if bucket.enabled:
+                            if discord_hash != bucket.bucket:
+                                discord_hash = bucket.bucket
+                                key = f"{discord_hash}:{local_bucket}"
+                                self._local_to_discord[local_bucket] = discord_hash
+
+                                if (new_bucket := self._get_bucket(key, autocreate=False)):
+                                    bucket = new_bucket
+                                else:
+                                    self._buckets[key] = bucket
+
                             await bucket.acquire()
 
-                            if 300 > resp.status >= 200:
-                                if resp.status == 204:
-                                    return
+                        if 300 > resp.status >= 200:
+                            if resp.status == 204:
+                                return
 
-                                content = await resp.text()
-                                return json_or_text(content, resp.content_type)
+                            content = await resp.text()
+                            return json_or_text(content, resp.content_type)
 
-                            if resp.status == 429:
-                                is_global = bool(resp.headers.get("X-RateLimit-Global", False))
-                                retry_after = float(resp.headers["Retry-After"])
+                        if resp.status == 429:
+                            is_global = bool(resp.headers.get("X-RateLimit-Global", False))
+                            retry_after = float(resp.headers["Retry-After"])
 
-                                if is_global:
-                                    self._global_lock.lock_for(retry_after)
-                                    await self._global_lock.wait()
-                                else:
-                                    bucket.lock_for(retry_after)
-                                    await bucket.acquire(auto_lock=False)
+                            if is_global:
+                                self._global_lock.lock_for(retry_after)
+                                await self._global_lock.wait()
+                            else:
+                                bucket.lock_for(retry_after)
+                                await bucket.acquire(auto_lock=False)
 
-                                continue                                
+                            continue                                
 
-                            if 500 > resp.status >= 400:
-                                raw_content = await resp.text()
-                                content = json_or_text(raw_content, resp.content_type)
+                        if 500 > resp.status >= 400:
+                            raw_content = await resp.text()
+                            content = json_or_text(raw_content, resp.content_type)
 
-                                if resp.status == 401:
-                                    raise Unauthorized(content)
-                                if resp.status == 403:
-                                    raise Forbidden(content)
-                                if resp.status == 404:
-                                    raise NotFound(content)
+                            if resp.status == 401:
+                                raise Unauthorized(content)
+                            if resp.status == 403:
+                                raise Forbidden(content)
+                            if resp.status == 404:
+                                raise NotFound(content)
 
-                                raise HTTPException(content, resp.status, resp.reason)
+                            raise HTTPException(content, resp.status, resp.reason)
 
-                            if 600 > resp.status >= 500:
-                                if resp.status in (500, 502):
-                                    await asyncio.sleep(2 * try_ + 1)
-                                    continue
-                                raise ServerError(None, resp.status, resp.reason)
-
-            except BucketMigrated as e:
-                _log.debug("Our bucket %s has migrated to %s.", e.old, e.new)
-                bucket = self._get_bucket((local_bucket, e.new))
+                        if 600 > resp.status >= 500:
+                            if resp.status in (500, 502):
+                                await asyncio.sleep(2 * try_ + 1)
+                                continue
+                            raise ServerError(None, resp.status, resp.reason)
 
         _log.error("Tried to make request to %s with method %s %d times.", route.formatted_url, route.method, MAX_RETRIES)
-        return
 
 def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
     content_type = content_type.lower()

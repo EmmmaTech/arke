@@ -57,13 +57,17 @@ class Bucket:
     def update_from(self, response: aiohttp.ClientResponse):
         headers = response.headers
 
+        if not self.enabled:
+            _log.debug("This bucket will skip an update because it's not enabled.")
+            return
+
         x_bucket: t.Optional[str] = headers.get("X-RateLimit-Bucket")
         if x_bucket is None:
             _log.debug("Ratelimiting is not supported for this bucket.")
             self.enabled = False
             return
-        
-        if self.bucket == "":
+
+        if not self.bucket:
             self.bucket = x_bucket
         elif self.bucket != x_bucket:
             self.migrate_to(x_bucket)
@@ -79,9 +83,10 @@ class Bucket:
             self.limit = x_limit
 
         x_remaining: int = int(headers.get("X-RateLimit-Remaining", 1))
-        if x_remaining < self.remaining:
+        if x_remaining < self.remaining or self.remaining == 0:
             self.remaining = x_remaining
 
+        # TODO: consider removing this
         x_reset: datetime.datetime = datetime.datetime.fromtimestamp(float(headers["X-RateLimit-Reset"]))
         if x_reset != self.reset:
             self.reset = x_reset
