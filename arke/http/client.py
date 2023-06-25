@@ -9,7 +9,7 @@ import typing as t
 from ..internal.json import JSONObject, JSONArray, load_json
 from .auth import Auth
 from .errors import HTTPException, Unauthorized, Forbidden, NotFound, ServerError
-from .ratelimit import Bucket, Lock, BucketMigrated
+from .ratelimit import Bucket, Lock
 from .route import Route
 
 __all__ = ("Route", "HTTPClient", "json_or_text",)

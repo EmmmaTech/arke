@@ -4,15 +4,9 @@ import datetime
 import logging
 import typing as t
 
-__all__ = ("BucketMigrated", "Lock", "Bucket",)
+__all__ = ("Lock", "Bucket",)
 
 _log = logging.getLogger(__name__)
-
-class BucketMigrated(Exception):
-    def __init__(self, old: str, new: str):
-        self.old: str = old
-        self.new: str = new
-        super().__init__(f"Bucket {old} has migrated to {new}.")
 
 class Lock(asyncio.Event):
     async def __aenter__(self):
@@ -95,10 +89,6 @@ class Bucket:
         if x_reset_after > self.reset_after:
             self.reset_after = x_reset_after
             self.reset_after += self.lag
-
-    def migrate_to(self, new: str):
-        self.enabled = False
-        raise BucketMigrated(self.bucket, new)
 
     def lock_for(self, time: float):
         if not self._lock.is_set():
