@@ -5,7 +5,7 @@ import typing as t
 
 __all__ = ("Route",)
 
-HTTP_METHODS: t.Literal["GET", "POST", "PATCH", "PUT", "DELETE"]
+HTTP_METHODS = t.Literal["GET", "POST", "PATCH", "PUT", "DELETE"]
 
 class Route:
     def __init__(self, method: HTTP_METHODS, url: str, **params: t.Any):
