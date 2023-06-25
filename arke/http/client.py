@@ -7,7 +7,7 @@ import typing as t
 
 from ..internal.json import JSONObject, JSONArray, load_json
 from .auth import Auth
-from .errors import HTTPException
+from .errors import HTTPException, Unauthorized, Forbidden, NotFound, ServerError
 from .ratelimit import Bucket, Lock, BucketMigrated
 from .route import Route
 
@@ -127,20 +127,28 @@ class HTTPClient:
                             if 500 > resp.status >= 400:
                                 raw_content = await resp.text()
                                 content = json_or_text(raw_content, resp.content_type)
+
+                                if resp.status == 401:
+                                    raise Unauthorized(content)
+                                if resp.status == 403:
+                                    raise Forbidden(content)
+                                if resp.status == 404:
+                                    raise NotFound(content)
+
                                 raise HTTPException(content, resp.status, resp.reason)
 
                             if 600 > resp.status >= 500:
                                 if resp.status in (500, 502):
                                     await asyncio.sleep(2 * try_ + 1)
                                     continue
-                                raise HTTPException(None, resp.status, resp.reason)
+                                raise ServerError(None, resp.status, resp.reason)
 
             except BucketMigrated as e:
                 _log.debug("Our bucket %s has migrated to %s.", e.old, e.new)
                 bucket = self._get_bucket((local_bucket, e.new))
 
         _log.error("Tried to make request to %s with method %s %d times.", route.formatted_url, route.method, MAX_RETRIES)
-        return (None, "")
+        return
 
 def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
     content_type = content_type.lower()

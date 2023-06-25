@@ -1,6 +1,12 @@
 import typing as t
 
-__all__ = ("HTTPException",)
+__all__ = (
+    "HTTPException",
+    "Unauthorized",
+    "Forbidden",
+    "NotFound",
+    "ServerError",
+)
 
 def _flatten_error_dict(d: dict[str, t.Any], *, parent: str = ""):
     ret: dict[str, t.Any] = {}
@@ -16,19 +22,43 @@ def _flatten_error_dict(d: dict[str, t.Any], *, parent: str = ""):
     return ret
 
 class HTTPException(Exception):
-    def __init__(self, msg: t.Any, status: int, status_msg: str):
-        error_msg = f"{status} {status_msg}"
+    def __init__(self, original: str | t.Optional[dict[str, t.Any]], status: int, status_msg: str):
+        code: int = 0
+        text: str
 
-        # TODO: use discord_typings for more precise typing here
-        if isinstance(msg, dict):
-            error_dict = _flatten_error_dict(msg)
+        if isinstance(original, dict):
+            code = original.get("code", 0)
+            message = original.get("message", "")
+            errors = original.get("errors")
 
-            if len(error_dict) == 1 and "" in error_dict:
-                error_msg += f" {error_dict['']}"
+            if errors:
+                errors = _flatten_error_dict(errors)
+                helpful = "\n".join(f"In {k}: {v}" for k, v in errors.items())
+                text = f"{helpful}\n\n{message}"
             else:
-                for k, v in error_dict.items():
-                    error_msg += f"\n\nIn {k}:\n{v['message']}"
-        elif msg is not None:
-            error_msg += f"\n{msg}"
+                text = message
+        else:
+            text = original or ""
 
-        super().__init__(error_msg)
+        fmt = f"{status} {status_msg}"
+        if code:
+            fmt += f" (discord code: {code})"
+        if text:
+            fmt += f"\n{text}"
+
+        super().__init__(fmt)
+
+class Unauthorized(HTTPException):
+    def __init__(self, original: str | t.Optional[dict[str, t.Any]]):
+        super().__init__(original, 401, "Unauthorized")
+
+class Forbidden(HTTPException):
+    def __init__(self, original: str | t.Optional[dict[str, t.Any]]):
+        super().__init__(original, 403, "Forbidden")
+
+class NotFound(HTTPException):
+    def __init__(self, original: str | t.Optional[dict[str, t.Any]]):
+        super().__init__(original, 404, "Not Found")
+
+class ServerError(HTTPException):
+    pass
