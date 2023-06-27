@@ -33,6 +33,7 @@ class BasicHTTPClient(abc.ABC):
         json: t.Optional[JSONObject | JSONArray] = None,
         query: t.Optional[dict[str, str]] = None,
         headers: t.Optional[dict[str, str]] = None,
+        auth: t.Optional[Auth] = None,
     ) -> str | JSONObject | JSONArray | None:
         pass
 
@@ -56,7 +57,7 @@ class HTTPClient(BasicHTTPClient):
     @property
     def http(self):
         if self._http is None:
-            self._http = aiohttp.ClientSession(headers=self._default_headers)
+            self._http = aiohttp.ClientSession()
 
         return self._http
     
@@ -90,20 +91,29 @@ class HTTPClient(BasicHTTPClient):
         json: t.Optional[JSONObject | JSONArray] = None,
         query: t.Optional[dict[str, str]] = None,
         headers: t.Optional[dict[str, str]] = None,
+        auth: t.Optional[Auth] = None,
     ):
         if route.method == "GET" and json:
             raise TypeError("json parameter cannot be mixed with GET method!")
 
-        params: dict[str, t.Any] = {}
+        if headers and "Authorization" in headers:
+            raise ValueError("Use the auth parameter to set authentication for this request.")
+
+        if not headers:
+            headers = {}
+
+        headers = {**self._default_headers, **headers}
+
+        if auth:
+            headers["Authorization"] = auth.header
+
+        params: dict[str, t.Any] = {"headers": headers}
 
         if json:
             params["json"] = json
 
         if query:
             params["params"] = query
-
-        if headers:
-            params["headers"] = headers
 
         local_bucket = route.bucket
         discord_hash = self._local_to_discord.get(local_bucket)
