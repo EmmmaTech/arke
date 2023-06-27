@@ -17,6 +17,9 @@ __all__ = ("Route", "HTTPClient", "json_or_text",)
 _log = logging.getLogger(__name__)
 
 BASE_API_URL = "https://discord.com/api/v{0}"
+# the discord api docs say to grab the gateway url via the get gateway endpoints
+# the url is always the same, so we do not do that here
+BASE_GATEWAY_URL = "wss://gateway.discord.gg"
 API_VERSION = 10
 
 def _get_user_agent():
@@ -207,6 +210,17 @@ class HTTPClient(BasicHTTPClient):
                             raise ServerError(None, resp.status, resp.reason)
 
         _log.error("Tried to make request to %s with method %s %d times.", route.formatted_url, route.method, MAX_RETRIES)
+
+    async def connect_gateway(self, *, encoding: t.Optional[t.Literal["json", "etf"]] = None, compress: t.Optional[t.Literal["zlib-stream"]] = None):
+        params: dict[str, t.Any] = {"v": API_VERSION}
+
+        if encoding:
+            params["encoding"] = encoding
+
+        if compress:
+            params["compress"] = compress
+
+        return await self.http.ws_connect(BASE_GATEWAY_URL, params=params)
 
 def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
     content_type = content_type.lower()
