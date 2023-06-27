@@ -63,8 +63,6 @@ class Bucket:
 
         if not self.bucket:
             self.bucket = x_bucket
-        elif self.bucket != x_bucket:
-            self.migrate_to(x_bucket)
 
         # from here on, the route has ratelimits
 
