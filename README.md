@@ -1,4 +1,4 @@
-# arke
+# Arke
 
 A Python Discord API Wrapper made from the ground up... I guess.
 
@@ -20,5 +20,7 @@ The name means "swift", which implies this Discord API Wrapper is fast. It proba
     - [x] Error Parsing
     - [x] Bot & Bearer Authentication
     - [ ] Route Wrapping
+        - NOTE: this library will not wrap the routes themselves because they constantly change.
+          This library will only give the foundations needed for route wrapping for others to do it.
 - Gateway
     - Nothing has been implemented yet
