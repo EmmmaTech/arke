@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import Any
 
+import abc
 import aiohttp
 import asyncio
 import logging
@@ -25,7 +25,18 @@ def _get_user_agent():
 def _get_base_url():
     return BASE_API_URL.format(API_VERSION)
 
-class HTTPClient:
+class BasicHTTPClient(abc.ABC):
+    async def request(
+        self,
+        route: Route,
+        *, 
+        json: t.Optional[JSONObject | JSONArray] = None,
+        query: t.Optional[dict[str, str]] = None,
+        headers: t.Optional[dict[str, str]] = None,
+    ) -> str | JSONObject | JSONArray | None:
+        pass
+
+class HTTPClient(BasicHTTPClient):
     def __init__(self, default_auth: Auth, *, bucket_lag: float = 0.2):
         self._http: t.Optional[aiohttp.ClientSession] = None
         self._default_headers: dict[str, str] = {"User-Agent": _get_user_agent(), "Authorization": default_auth.header}
@@ -105,6 +116,7 @@ class HTTPClient:
 
         MAX_RETRIES = 5
 
+        _log.debug("Request with bucket %s will start.", key)
         for try_ in range(MAX_RETRIES):
             async with self._global_lock:
                 _log.debug("The global lock has been acquired.")
@@ -123,6 +135,8 @@ class HTTPClient:
                                 key = f"{discord_hash}:{local_bucket}"
                                 self._local_to_discord[local_bucket] = discord_hash
 
+                                _log.debug("Our bucket has migrated to %s! The new bucket will be refetched.", key)
+
                                 if (new_bucket := self._get_bucket(key, autocreate=False)):
                                     bucket = new_bucket
                                 else:
@@ -131,6 +145,14 @@ class HTTPClient:
                             await bucket.acquire()
 
                         if 300 > resp.status >= 200:
+                            _log.debug(
+                                "Successfully made a request to %s with status code %i and in %i "
+                                "try" if try_ == 1 else "tries" ".",
+                                route.formatted_url, 
+                                resp.status,
+                                try_ + 1,
+                            )
+
                             if resp.status == 204:
                                 return
 
@@ -142,9 +164,13 @@ class HTTPClient:
                             retry_after = float(resp.headers["Retry-After"])
 
                             if is_global:
+                                _log.info("We have hit a global ratelimit! We will globally lock for %f seconds.", retry_after)
+
                                 self._global_lock.lock_for(retry_after)
                                 await self._global_lock.wait()
                             else:
+                                _log.info("Bucket %s has hit a ratelimit! We will lock for %f seconds.", key, retry_after)
+
                                 bucket.lock_for(retry_after)
                                 await bucket.acquire(auto_lock=False)
 
@@ -165,6 +191,7 @@ class HTTPClient:
 
                         if 600 > resp.status >= 500:
                             if resp.status in (500, 502):
+                                _log.info("We have gotten server error %i! We will retry in %i.", resp.status, 2 * try_ + 1)
                                 await asyncio.sleep(2 * try_ + 1)
                                 continue
                             raise ServerError(None, resp.status, resp.reason)
