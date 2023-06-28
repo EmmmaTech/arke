@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import datetime
 import random
 import typing as t
 import zlib
@@ -23,6 +24,7 @@ class Shard:
         self._http: HTTPClient = http
         self._ws: t.Optional[aiohttp.ClientWebSocketResponse] = None
         self._decompressor: zlib._Decompress = zlib.decompressobj()
+        self._last_heartbeat_ack: t.Optional[datetime.datetime] = None 
         self._heartbeat_task: t.Optional[asyncio.Task[None]] = None
         self._connection_task: t.Optional[asyncio.Task[None]] = None
 
@@ -41,8 +43,7 @@ class Shard:
             return
 
         if msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSED):
-            # TODO: disconnect function
-            pass
+            return await self.disconnect()
 
         # TODO: cast the message into a properly typed ws msg class
         if msg.type in (aiohttp.WSMsgType.BINARY, aiohttp.WSMsgType.TEXT):
@@ -66,6 +67,20 @@ class Shard:
 
         await self.identify()
         self._heartbeat_task = await asyncio.create_task(self._heartbeat_loop())
+
+    async def disconnect(self, *, code: int = 1000):
+        if not self._ws:
+            return
+
+        if self._connection_task:
+            self._connection_task.cancel()
+            await self._connection_task
+
+        if self._heartbeat_task:
+            self._heartbeat_task.cancel()
+            await self._heartbeat_task
+
+        await self._ws.close(code=code)
 
     async def _heartbeat_loop(self):
         timeout = self.heartbeat_interval * random.random()
