@@ -1,12 +1,15 @@
 import aiohttp
 import asyncio
 import datetime
+import platform
 import random
 import typing as t
 import zlib
 
+from ..http.auth import Auth
 from ..http.client import HTTPClient
 from ..internal.json import JSONArray, JSONObject, dump_json, load_json
+from ..utils.dispatcher import Dispatcher
 
 __all__ = ("Shard",)
 
@@ -20,14 +23,26 @@ def _decompress_msg(msg: bytes, decompressor: zlib._Decompress):
     return deflated.decode()
 
 class Shard:
-    def __init__(self, http: HTTPClient, *, timeout: float = 30.0):
+    def __init__(
+        self, 
+        auth: Auth, 
+        http: HTTPClient, 
+        dispatcher: Dispatcher, 
+        *, 
+        intents: int,
+        timeout: float = 30.0,
+    ):
+        self._auth: Auth = auth
         self._http: HTTPClient = http
+        self._dispatcher: Dispatcher = dispatcher
         self._ws: t.Optional[aiohttp.ClientWebSocketResponse] = None
         self._decompressor: zlib._Decompress = zlib.decompressobj()
         self._last_heartbeat_ack: t.Optional[datetime.datetime] = None 
+
         self._heartbeat_task: t.Optional[asyncio.Task[None]] = None
         self._connection_task: t.Optional[asyncio.Task[None]] = None
 
+        self.intents: int = intents
         self.timeout: float = timeout
         self.heartbeat_interval: float = 0.0
         self.sequence: t.Optional[int] = None
@@ -58,7 +73,7 @@ class Shard:
 
             return json
 
-    async def _connect(self):
+    async def connect(self):
         self._ws = await self._http.connect_gateway(encoding="json", compress="zlib-stream")
 
         hello = await self.receive()
@@ -99,11 +114,12 @@ class Shard:
         payload = {
             "op": 2,
             "d": {
-                "token": self._http._default_headers["Authorization"],  # TODO: consider having auth as a separate parameter?
+                "token": self._auth.header,
+                "intents": self.intents,
                 "properties": {
-                    "os": "Python",
-                    "browser": "Arke",
-                    "device": "Computer",
+                    "os": platform.system() or "Unknown",
+                    "browser": "arke",
+                    "device": "arke",
                 },
             },
         }
