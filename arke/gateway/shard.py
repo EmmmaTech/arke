@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import datetime
+import discord_typings as dt
 import platform
 import random
 import typing as t
@@ -48,10 +49,16 @@ class Shard:
         self.sequence: t.Optional[int] = None
 
     async def send(self, payload: JSONArray | JSONObject):
+        if not self._ws:
+            return
+
         raw_payload = dump_json(payload)
         await self._ws.send_str(raw_payload)
 
     async def receive(self):
+        if not self._ws:
+            return
+
         try:
             msg = await self._ws.receive(self.timeout)
         except asyncio.CancelledError:
@@ -69,6 +76,7 @@ class Shard:
                 contents = t.cast(str, msg.data)
 
             json = load_json(contents)
+            json = t.cast(dt.GatewayEvent, json)
             self.sequence = json.get("s")
 
             return json
@@ -78,7 +86,8 @@ class Shard:
 
         hello = await self.receive()
         if hello and isinstance(hello, dict):
-            self.heartbeat_interval = hello["heartbeat_interval"] / 1000
+            hello = t.cast(dt.HelloEvent, hello)
+            self.heartbeat_interval = hello["d"]["heartbeat_interval"] / 1000
 
         await self.identify()
         self._heartbeat_task = await asyncio.create_task(self._heartbeat_loop())
@@ -98,6 +107,9 @@ class Shard:
         await self._ws.close(code=code)
 
     async def _heartbeat_loop(self):
+        if not self._ws:
+            return
+
         timeout = self.heartbeat_interval * random.random()
 
         while not self._ws.closed:
