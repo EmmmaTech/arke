@@ -13,6 +13,13 @@ BaseDispatcherListener = t.Callable[[t.Any], t.Coroutine[t.Any, t.Any, None]]
 BaseDispatcherWaitForCheck = t.Callable[[t.Any], bool]
 BaseDispatcherWaitForPair = tuple[BaseDispatcherWaitForCheck, asyncio.Future[t.Any]]
 
+def _completed_future():
+    loop = asyncio.get_running_loop()
+
+    future = loop.create_future()
+    future.set_result(None)
+    return future
+
 class RawDispatcher(t.Generic[_T]):
     def __init__(self, event_type: type[_T], /):
         self.event_type: type[_T] = event_type
@@ -62,9 +69,6 @@ class RawDispatcher(t.Generic[_T]):
         listeners = self._listeners.get(event, [])
         wait_fors = self._wait_for_callbacks.get(event, [])
 
-        if len(listeners) == 0 or len(wait_fors) == 0:
-            return
-
         _log.info(
             "%i listeners and %i wait for futures under %s will be dispatched.", 
             len(listeners),
@@ -91,5 +95,12 @@ class RawDispatcher(t.Generic[_T]):
 
         self._wait_for_callbacks[event] = wait_fors
 
+        tasks = []
         for listener in listeners:
-            loop.create_task(listener(metadata), name=f"arke-dispatcher:{listener.__name__}")
+            task = loop.create_task(listener(metadata), name=f"arke-dispatcher:{listener.__name__}")
+            tasks.append(task)
+
+        if tasks:
+            return asyncio.gather(*tasks)
+        else:
+            return _completed_future()

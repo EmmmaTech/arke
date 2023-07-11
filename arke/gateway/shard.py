@@ -99,7 +99,7 @@ class Shard:
             _log.info("Connected to the Gateway.")
             self._ws = await self._http.connect_gateway(encoding="json", compress="zlib-stream")
 
-        self.event_dispatcher.dispatch("connect", None)
+        await self.event_dispatcher.dispatch("connect", None)
         self._connection_task = asyncio.create_task(self._connection_loop())
 
     async def disconnect(self, *, keep_session: bool = False):
@@ -131,15 +131,14 @@ class Shard:
             self.sequence = None
 
         self._ws = None
-        self.event_dispatcher.dispatch("disconnect", None)
+        await self.event_dispatcher.dispatch("disconnect", None)
 
     async def _connection_loop(self):
         assert self._ws is not None, "We have not connected yet! Please connect via the connect method."
 
         async for msg in self._ws:
-            if msg.type in (aiohttp.WSMsgType.BINARY, aiohttp.WSMsgType.TEXT):
-                processed = self._process_raw_msg(msg)
-                self.op_dispatcher.dispatch(processed["op"], processed)
+            processed = self._process_raw_msg(msg)
+            await self.op_dispatcher.dispatch(int(processed["op"]), processed)
 
         code = self._ws.close_code
         if not code:
@@ -230,7 +229,7 @@ class Shard:
 
         _log.debug("Received DISPATCH event from the Gateway with name %s and data %r.", name, data)
 
-        self.event_dispatcher.dispatch(name, data)
+        await self.event_dispatcher.dispatch(name, data)
 
         if name == "READY":
             self._resume_url = data["resume_gateway_url"]
