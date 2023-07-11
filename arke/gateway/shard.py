@@ -10,8 +10,8 @@ import zlib
 from ..http.auth import Auth
 from ..http.client import HTTPClient
 from ..internal.json import JSONArray, JSONObject, dump_json, load_json
-from ..utils.dispatcher import Dispatcher
-from . import errors, events
+from ..utils.dispatcher import RawDispatcher
+from . import errors
 
 __all__ = ("Shard",)
 
@@ -24,14 +24,12 @@ class Shard:
         self, 
         auth: Auth, 
         http: HTTPClient, 
-        dispatcher: Dispatcher, 
         *, 
         intents: int,
         should_reconnect: bool = True,
     ):
         self._auth: Auth = auth
         self._http: HTTPClient = http
-        self._dispatcher: Dispatcher = dispatcher
         self._ws: t.Optional[aiohttp.ClientWebSocketResponse] = None
         self._decompressor: t.Optional[zlib._Decompress] = None
         self._resume_url: t.Optional[str] = None
@@ -39,6 +37,9 @@ class Shard:
         self._heartbeat_task: t.Optional[asyncio.Task[None]] = None
         self._heartbeat_ack_received: t.Optional[asyncio.Future[None]] = None
         self._connection_task: t.Optional[asyncio.Task[None]] = None
+
+        self.op_dispatcher: RawDispatcher[int] = RawDispatcher(int)
+        self.event_dispatcher: RawDispatcher[str] = RawDispatcher(str)
 
         self.should_reconnect: bool = should_reconnect
         self.intents: int = intents
@@ -49,11 +50,11 @@ class Shard:
         self._load_listeners()
 
     def _load_listeners(self):
-        self._dispatcher.add_listener(self._handle_dispatch, events.RawGatewayEvent)
-        self._dispatcher.add_listener(self._handle_reconnect, events.RawGatewayEvent)
-        self._dispatcher.add_listener(self._handle_invalid_session, events.RawGatewayEvent)
-        self._dispatcher.add_listener(self._handle_hello, events.RawGatewayEvent)
-        self._dispatcher.add_listener(self._handle_heartbeat_ack, events.RawGatewayEvent)
+        self.op_dispatcher.add_listener(self._handle_dispatch, 0)
+        self.op_dispatcher.add_listener(self._handle_reconnect, 7)
+        self.op_dispatcher.add_listener(self._handle_invalid_session, 9)
+        self.op_dispatcher.add_listener(self._handle_hello, 10)
+        self.op_dispatcher.add_listener(self._handle_heartbeat_ack, 11)
 
     # gateway message handling
 
@@ -61,7 +62,6 @@ class Shard:
         assert self._ws is not None, "We have not connected yet! Please connect via the connect method."
 
         raw_payload = dump_json(payload)
-        await self._dispatcher.dispatch(events.RawGatewaySend(raw_payload))
         await self._ws.send_str(raw_payload)
 
         _log.debug('Sent payload "%s" to the Gateway.', raw_payload)
@@ -99,7 +99,7 @@ class Shard:
             _log.info("Connected to the Gateway.")
             self._ws = await self._http.connect_gateway(encoding="json", compress="zlib-stream")
 
-        await self._dispatcher.dispatch(events.ConnectEvent())
+        self.event_dispatcher.dispatch("connect", None)
         self._connection_task = asyncio.create_task(self._connection_loop())
 
     async def disconnect(self, *, keep_session: bool = False):
@@ -131,14 +131,15 @@ class Shard:
             self.sequence = None
 
         self._ws = None
-        await self._dispatcher.dispatch(events.DisconnectEvent())
+        self.event_dispatcher.dispatch("disconnect", None)
 
     async def _connection_loop(self):
         assert self._ws is not None, "We have not connected yet! Please connect via the connect method."
 
         async for msg in self._ws:
-            processed = self._process_raw_msg(msg)
-            await self._dispatcher.dispatch(events.RawGatewayEvent(processed))
+            if msg.type in (aiohttp.WSMsgType.BINARY, aiohttp.WSMsgType.TEXT):
+                processed = self._process_raw_msg(msg)
+                self.op_dispatcher.dispatch(processed["op"], processed)
 
         code = self._ws.close_code
         if not code:
@@ -223,39 +224,26 @@ class Shard:
 
     # events
 
-    async def _handle_dispatch(self, event: events.RawGatewayEvent):
-        if event.event["op"] != 0:
-            return
-
-        name = event.event["t"]
-        data = event.event["d"]
+    async def _handle_dispatch(self, event: dt.DispatchEvent):
+        name = event["t"]
+        data = event["d"]
 
         _log.debug("Received DISPATCH event from the Gateway with name %s and data %r.", name, data)
 
-        await self._dispatcher.dispatch(events.DispatchEvent(
-            name=name, data=data
-        ))
+        self.event_dispatcher.dispatch(name, data)
 
         if name == "READY":
             self._resume_url = data["resume_gateway_url"]
             self.session_id = data["session_id"]
 
-            await self._dispatcher.dispatch(events.ReadyEvent(data))
-
-    async def _handle_reconnect(self, event: events.RawGatewayEvent):
-        if event.event["op"] != 7:
-            return
-        
+    async def _handle_reconnect(self, event: dict[t.Any, t.Any]):
         _log.debug("Received RECONNECT event from the Gateway. We will reconnect and keep our session.")
 
         await self.disconnect(keep_session=True)
         await self.connect()
 
-    async def _handle_invalid_session(self, event: events.RawGatewayEvent):
-        if event.event["op"] != 9:
-            return
-        
-        resume = event.event["d"]
+    async def _handle_invalid_session(self, event: dt.InvalidSessionEvent):
+        resume = event["d"]
         
         _log.debug("Received INVALID_SESSION event from the Gateway.")
 
@@ -269,13 +257,10 @@ class Shard:
         else:
             await self.disconnect()
 
-    async def _handle_hello(self, event: events.RawGatewayEvent):
-        if event.event["op"] != 10:
-            return
-
+    async def _handle_hello(self, event: dt.HelloEvent):
         _log.debug("Received HELLO event from the Gateway.")
 
-        self.heartbeat_interval = event.event["d"]["heartbeat_interval"] / 1000
+        self.heartbeat_interval = event["d"]["heartbeat_interval"] / 1000
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
 
         if self.session_id is not None:
@@ -285,8 +270,8 @@ class Shard:
             _log.debug("Gateway session will begin.")
             await self.identify()
 
-    async def _handle_heartbeat_ack(self, event: events.RawGatewayEvent):
-        if event.event["op"] != 11 or not self._heartbeat_ack_received:
+    async def _handle_heartbeat_ack(self, event: dt.HeartbeatACKEvent):
+        if not self._heartbeat_ack_received:
             return
         
         _log.debug("Received HEARTBEAT_ACK event from the Gateway.")
