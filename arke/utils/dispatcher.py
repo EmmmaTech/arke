@@ -57,8 +57,8 @@ class ExceptionEvent(Event, t.Generic[_EventT]):
 
 class Dispatcher:
     def __init__(self):
-        self._listeners: defaultdict[type[Event], list[DispatcherListener]] = defaultdict()
-        self._wait_for_callbacks: defaultdict[type[Event], list[DispatcherWaitForPair]] = defaultdict()        
+        self._listeners: defaultdict[type[Event], list[DispatcherListener]] = defaultdict(list)
+        self._wait_for_callbacks: defaultdict[type[Event], list[DispatcherWaitForPair]] = defaultdict(list)        
 
     def add_listener(self, listener: GenericDispatcherListener[_EventT], event: type[_EventT]):
         if not asyncio.iscoroutinefunction(listener):
