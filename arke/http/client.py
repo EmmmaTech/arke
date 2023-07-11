@@ -211,16 +211,27 @@ class HTTPClient(BasicHTTPClient):
 
         _log.error("Tried to make request to %s with method %s %d times.", route.formatted_url, route.method, MAX_RETRIES)
 
-    async def connect_gateway(self, *, encoding: t.Optional[t.Literal["json", "etf"]] = None, compress: t.Optional[t.Literal["zlib-stream"]] = None):
-        params: dict[str, t.Any] = {"v": API_VERSION}
+    @t.overload
+    async def connect_gateway(self, *, url: None = None, encoding: t.Optional[t.Literal["json", "etf"]] = None, compress: t.Optional[t.Literal["zlib-stream"]] = None):
+        pass
 
-        if encoding:
-            params["encoding"] = encoding
+    @t.overload
+    async def connect_gateway(self, *, url: str, encoding: None = None, compress: None = None):
+        pass
 
-        if compress:
-            params["compress"] = compress
+    async def connect_gateway(self, *, url: t.Optional[str] = None, encoding: t.Optional[t.Literal["json", "etf"]] = None, compress: t.Optional[t.Literal["zlib-stream"]] = None):
+        params: dict[str, t.Any] = {}
+        if not url:
+            url = BASE_GATEWAY_URL
+            params = {"v": API_VERSION}
 
-        return await self.http.ws_connect(BASE_GATEWAY_URL, params=params)
+            if encoding:
+                params["encoding"] = encoding
+
+            if compress:
+                params["compress"] = compress
+
+        return await self.http.ws_connect(url, params=params)
 
 def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
     content_type = content_type.lower()
