@@ -23,8 +23,8 @@ The name means "swift", which implies this Discord API Wrapper is fast. It proba
         - NOTE: this library will not wrap the routes themselves because they constantly change.
           This library will only give the foundations needed for route wrapping for others to do it.
 - Gateway
-    - [ ] Connection Handling
-    - [ ] Events/Dispatcher
+    - [x] Connection Handling
+    - [x] Events/Dispatcher
     - [ ] Ratelimiting
-    - [ ] Error Handling
+    - [x] Error Handling
     - [ ] Sharding
