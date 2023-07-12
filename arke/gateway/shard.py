@@ -241,7 +241,7 @@ class Shard:
             self._resume_url = data["resume_gateway_url"]
             self.session_id = data["session_id"]
 
-    async def _handle_reconnect(self, event: dict[t.Any, t.Any]):
+    async def _handle_reconnect(self, event: dt.ReconnectEvent):
         _log.debug("Received RECONNECT event from the Gateway. We will reconnect and keep our session.")
 
         await self.disconnect(keep_session=True)
