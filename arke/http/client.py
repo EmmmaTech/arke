@@ -160,7 +160,7 @@ class HTTPClient(BasicHTTPClient):
                         if 300 > resp.status >= 200:
                             _log.debug(
                                 "Successfully made a request to %s with status code %i and in %i "
-                                "try" if try_ == 1 else "tries" ".",
+                                + ("try" if try_ == 1 else "tries") + ".",
                                 route.formatted_url, 
                                 resp.status,
                                 try_ + 1,
@@ -192,6 +192,9 @@ class HTTPClient(BasicHTTPClient):
                         if 500 > resp.status >= 400:
                             raw_content = await resp.text()
                             content = json_or_text(raw_content, resp.content_type)
+
+                            if t.TYPE_CHECKING:
+                                content = t.cast(t.Mapping[str, t.Any], content)
 
                             if resp.status == 401:
                                 raise Unauthorized(content)
