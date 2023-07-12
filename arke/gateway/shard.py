@@ -12,6 +12,7 @@ from ..http.client import HTTPClient
 from ..internal.json import JSONArray, JSONObject, dump_json, load_json
 from ..utils.dispatcher import RawDispatcher
 from . import errors
+from .ratelimit import TimePer
 
 __all__ = ("Shard",)
 
@@ -33,6 +34,7 @@ class Shard:
         self._ws: t.Optional[aiohttp.ClientWebSocketResponse] = None
         self._decompressor: t.Optional[zlib._Decompress] = None
         self._resume_url: t.Optional[str] = None
+        self._ratelimiter: TimePer = TimePer(120, 60)
 
         self._heartbeat_task: t.Optional[asyncio.Task[None]] = None
         self._heartbeat_ack_received: t.Optional[asyncio.Future[None]] = None
@@ -61,10 +63,11 @@ class Shard:
     async def send(self, payload: JSONArray | JSONObject):
         assert self._ws is not None, "We have not connected yet! Please connect via the connect method."
 
-        raw_payload = dump_json(payload)
-        await self._ws.send_str(raw_payload)
+        async with self._ratelimiter:
+            raw_payload = dump_json(payload)
+            await self._ws.send_str(raw_payload)
 
-        _log.debug('Sent payload "%s" to the Gateway.', raw_payload)
+            _log.debug('Sent payload "%s" to the Gateway.', raw_payload)
 
     def _process_raw_msg(self, msg: aiohttp.WSMessage):
         assert self._decompressor is not None, "The decompressor object has not been set!"
@@ -91,6 +94,7 @@ class Shard:
 
     async def connect(self):
         self._decompressor = zlib.decompressobj()
+        self._ratelimiter.start()
 
         if self.session_id is not None and self._resume_url is not None:
             self._ws = await self._http.connect_gateway(url=self._resume_url)
@@ -105,14 +109,14 @@ class Shard:
     async def disconnect(self, *, keep_session: bool = False):
         assert self._ws is not None, "We have not connected yet!"
 
+        await self._ratelimiter.stop()
+
         if self._connection_task:
             self._connection_task.cancel()
-            await self._connection_task
             self._connection_task = None
 
         if self._heartbeat_task:
             self._heartbeat_task.cancel()
-            await self._heartbeat_task
             self._heartbeat_task = None
 
         if self._heartbeat_ack_received:
@@ -171,12 +175,12 @@ class Shard:
         elif close_code == 4001:
             # normally we can reconnect for this opcode, but it's better to stop because of the internal problem
             _log.error("Unknown Opcode (4001): This is an internal error with arke.gateway. Please open an issue on the GitHub repo.")
-            await self.disconnect()
+            await self.disconnect(keep_session=self.should_reconnect)
             if self.should_reconnect:
                 await self.connect()
         elif close_code == 4002:
             _log.error("Decode Error (4002): This is an internal error with arke.gateway. Please open an issue on the GitHub repo.")
-            await self.disconnect()
+            await self.disconnect(keep_session=self.should_reconnect)
             if self.should_reconnect:
                 await self.connect()
         elif close_code == 4003:
@@ -188,7 +192,7 @@ class Shard:
             raise errors.AuthenticationError("4004: Invalid authentication was provided to the Gateway.")
         elif close_code == 4005:
             _log.error("Already Authenticated (4005): This is an internal error with arke.gateway. Please open an issue on the GitHub repo.")
-            await self.disconnect()
+            await self.disconnect(keep_session=self.should_reconnect)
             if self.should_reconnect:
                 await self.connect()
         elif close_code == 4007:
@@ -196,8 +200,10 @@ class Shard:
             await self.disconnect()
             await self.connect()
         elif close_code == 4008:
-            # TODO: handle when ratelimiting is handled
-            pass
+            _log.error("Ratelimited (4008): We have been ratelimited! Reconnecting.")
+            await self._ratelimiter.acquire()
+            await self.disconnect(keep_session=True)
+            await self.connect()
         elif close_code == 4009:
             _log.error("Session Timed Out (4009): The gateway session with Discord has timed out. Reconnecting.")
             await self.disconnect()
