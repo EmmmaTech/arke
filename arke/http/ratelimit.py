@@ -3,7 +3,7 @@ import datetime
 import logging
 import typing as t
 
-from ..internal.lock import Lock
+from ..internal.ratelimit import Lock
 
 __all__ = ("Lock", "Bucket",)
 
@@ -16,7 +16,6 @@ class Bucket:
         self.bucket: str = ""
         self.reset_after: float = 0.0
         self._lock: Lock = Lock()
-        self._lock.set()
         self.limit: int = 1
         self.remaining: int = 1
         self.reset: t.Optional[datetime.datetime] = None
@@ -25,7 +24,7 @@ class Bucket:
 
     async def __aenter__(self):
         await self.acquire()
-        return self
+        return None
     
     async def __aexit__(self, *_):
         pass

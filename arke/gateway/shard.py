@@ -10,9 +10,9 @@ import zlib
 from ..http.auth import Auth
 from ..http.client import HTTPClient
 from ..internal.json import JSONArray, JSONObject, dump_json, load_json
+from ..internal.ratelimit import TimePer
 from ..utils.dispatcher import RawDispatcher
 from . import errors
-from .ratelimit import TimePer
 
 __all__ = ("Shard",)
 
@@ -94,7 +94,6 @@ class Shard:
 
     async def connect(self):
         self._decompressor = zlib.decompressobj()
-        self._ratelimiter.start()
 
         if self.session_id is not None and self._resume_url is not None:
             self._ws = await self._http.connect_gateway(url=self._resume_url)
@@ -108,8 +107,6 @@ class Shard:
 
     async def disconnect(self, *, keep_session: bool = False):
         assert self._ws is not None, "We have not connected yet!"
-
-        await self._ratelimiter.stop()
 
         if self._connection_task:
             self._connection_task.cancel()
