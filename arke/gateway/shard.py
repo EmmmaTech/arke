@@ -79,14 +79,10 @@ class Shard:
             raw_payload = dump_json(payload)
             await self._ws.send_str(raw_payload)
 
-            _log.debug(
-                'ID:%i Sent payload "%s" to the Gateway.', self.shard_id, raw_payload
-            )
+            _log.debug('ID:%i Sent payload "%s" to the Gateway.', self.shard_id, raw_payload)
 
     def _process_raw_msg(self, msg: aiohttp.WSMessage):
-        assert (
-            self._decompressor is not None
-        ), "The decompressor object has not been set!"
+        assert self._decompressor is not None, "The decompressor object has not been set!"
 
         if msg.type == aiohttp.WSMsgType.BINARY:
             contents = t.cast(bytes, msg.data)
@@ -119,9 +115,7 @@ class Shard:
                 self.session_id,
             )
         else:
-            self._ws = await self._http.connect_gateway(
-                encoding="json", compress="zlib-stream"
-            )
+            self._ws = await self._http.connect_gateway(encoding="json", compress="zlib-stream")
             _log.info("ID:%i Connected to the Gateway.", self.shard_id)
 
         await self.event_dispatcher.dispatch("connect", None)
@@ -323,15 +317,11 @@ class Shard:
     async def _handle_invalid_session(self, event: dt.InvalidSessionEvent):
         resume = event["d"]
 
-        _log.debug(
-            "ID:%i Received INVALID_SESSION event from the Gateway.", self.shard_id
-        )
+        _log.debug("ID:%i Received INVALID_SESSION event from the Gateway.", self.shard_id)
 
         if self.should_reconnect:
             _log.debug(
-                "ID:%i We will reconnect and "
-                + ("keep" if resume else "delete")
-                + " our session.",
+                "ID:%i We will reconnect and " + ("keep" if resume else "delete") + " our session.",
                 self.shard_id,
             )
 
@@ -355,9 +345,7 @@ class Shard:
             await self.resume()
         else:
             if self._identify_ratelimit is not None:
-                _log.debug(
-                    "Shard %i will wait for the identify ratelimit.", self.shard_id
-                )
+                _log.debug("Shard %i will wait for the identify ratelimit.", self.shard_id)
                 await self._identify_ratelimit.acquire()
 
             _log.debug("ID:%i Gateway session will begin.", self.shard_id)
@@ -367,9 +355,7 @@ class Shard:
         if not self._heartbeat_ack_received:
             return
 
-        _log.debug(
-            "ID:%i Received HEARTBEAT_ACK event from the Gateway.", self.shard_id
-        )
+        _log.debug("ID:%i Received HEARTBEAT_ACK event from the Gateway.", self.shard_id)
 
         self._heartbeat_ack_received.set_result(None)
 

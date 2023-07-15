@@ -135,9 +135,7 @@ class Manager:
             self._pending_shard_count = None
             self.pending_shards.clear()
 
-        _log.debug(
-            "New shards have been created. We will close and replace old shards."
-        )
+        _log.debug("New shards have been created. We will close and replace old shards.")
 
         await asyncio.gather(*[s.disconnect() for s in self.current_shards])
 

@@ -31,9 +31,7 @@ API_VERSION = 10
 
 
 def _get_user_agent():
-    return (
-        f"DiscordBot (https://github.com/EmreTech/discord-api-wrapper, 1.0 Prototype)"
-    )
+    return f"DiscordBot (https://github.com/EmreTech/discord-api-wrapper, 1.0 Prototype)"
 
 
 def _get_base_url():
@@ -91,9 +89,7 @@ class HTTPClient(BasicHTTPClient):
         pass
 
     @t.overload
-    def _get_bucket(
-        self, key: str, *, autocreate: t.Literal[False]
-    ) -> t.Optional[Bucket]:
+    def _get_bucket(self, key: str, *, autocreate: t.Literal[False]) -> t.Optional[Bucket]:
         pass
 
     def _get_bucket(self, key: str, *, autocreate: bool = True):
@@ -118,9 +114,7 @@ class HTTPClient(BasicHTTPClient):
             raise TypeError("json parameter cannot be mixed with GET method!")
 
         if headers and "Authorization" in headers:
-            raise ValueError(
-                "Use the auth parameter to set authentication for this request."
-            )
+            raise ValueError("Use the auth parameter to set authentication for this request.")
 
         if not headers:
             headers = {}
@@ -171,9 +165,7 @@ class HTTPClient(BasicHTTPClient):
                                     key,
                                 )
 
-                                if new_bucket := self._get_bucket(
-                                    key, autocreate=False
-                                ):
+                                if new_bucket := self._get_bucket(key, autocreate=False):
                                     bucket = new_bucket
                                 else:
                                     self._buckets[key] = bucket
@@ -197,9 +189,7 @@ class HTTPClient(BasicHTTPClient):
                             return json_or_text(content, resp.content_type)
 
                         if resp.status == 429:
-                            is_global = bool(
-                                resp.headers.get("X-RateLimit-Global", False)
-                            )
+                            is_global = bool(resp.headers.get("X-RateLimit-Global", False))
                             retry_after = float(resp.headers["Retry-After"])
 
                             if is_global:
@@ -267,9 +257,7 @@ class HTTPClient(BasicHTTPClient):
         pass
 
     @t.overload
-    async def connect_gateway(
-        self, *, url: str, encoding: None = None, compress: None = None
-    ):
+    async def connect_gateway(self, *, url: str, encoding: None = None, compress: None = None):
         pass
 
     async def connect_gateway(
@@ -293,9 +281,7 @@ class HTTPClient(BasicHTTPClient):
         return await self.http.ws_connect(url, params=params)
 
 
-def json_or_text(
-    content: str | None, content_type: str
-) -> str | JSONObject | JSONArray | None:
+def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
     content_type = content_type.lower()
 
     if content and content_type != "":
