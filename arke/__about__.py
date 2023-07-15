@@ -6,6 +6,7 @@ __version__ = "0.1.0"
 
 import typing as t
 
+
 class VersionInfo(t.NamedTuple):
     major: int
     minor: int
@@ -25,7 +26,7 @@ class VersionInfo(t.NamedTuple):
                 releaseinfo = "alpha"
             elif "b" in releaseinfo:
                 serial = int(releaseinfo[1:])
-                releaseinfo = "beta" 
+                releaseinfo = "beta"
             else:
                 serial = int(releaseinfo[2:])
                 releaseinfo = "candidate"
@@ -35,13 +36,13 @@ class VersionInfo(t.NamedTuple):
         major, minor, patch = version.split(".")
 
         return cls(
-            major=int(major), 
-            minor=int(minor), 
-            patch=int(patch), 
-            releaseinfo=releaseinfo, 
-            serial=serial
+            major=int(major),
+            minor=int(minor),
+            patch=int(patch),
+            releaseinfo=releaseinfo,
+            serial=serial,
         )
-    
+
 
 version_info: VersionInfo = VersionInfo.from_string(__version__)
 
