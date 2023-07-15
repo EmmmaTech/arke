@@ -1,13 +1,18 @@
-import aiohttp
 import datetime
 import logging
 import typing as t
 
+import aiohttp
+
 from ..internal.ratelimit import Lock
 
-__all__ = ("Lock", "Bucket",)
+__all__ = (
+    "Lock",
+    "Bucket",
+)
 
 _log = logging.getLogger(__name__)
+
 
 class Bucket:
     def __init__(self, lag: float = 0.2):
@@ -25,7 +30,7 @@ class Bucket:
     async def __aenter__(self):
         await self.acquire()
         return None
-    
+
     async def __aexit__(self, *_):
         pass
 
@@ -50,7 +55,7 @@ class Bucket:
         if headers.get("X-RateLimit-Global", False):
             _log.debug("This ratelimit is globally applied.")
             return
-        
+
         x_limit: int = int(headers["X-RateLimit-Limit"])
         if x_limit != self.limit:
             self.limit = x_limit
@@ -60,7 +65,9 @@ class Bucket:
             self.remaining = x_remaining
 
         # TODO: consider removing this
-        x_reset: datetime.datetime = datetime.datetime.fromtimestamp(float(headers["X-RateLimit-Reset"]))
+        x_reset: datetime.datetime = datetime.datetime.fromtimestamp(
+            float(headers["X-RateLimit-Reset"])
+        )
         if x_reset != self.reset:
             self.reset = x_reset
 

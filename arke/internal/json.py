@@ -3,7 +3,7 @@ import typing as t
 T = t.TypeVar("T")
 
 # these type aliases are to properly represent the recursion of json
-# implementation taken from velum 
+# implementation taken from velum
 # (https://github.com/eludris-community/velum/blob/6065fd13ac6c6514534c5f5b2b3c4366973a9a92/velum/internal/data_binding.py#L27-L33)
 
 JSONPrimitiveT = str | int | float | bool | None | T

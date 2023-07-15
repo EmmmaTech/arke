@@ -10,6 +10,7 @@ __all__ = (
     "ServerError",
 )
 
+
 def _flatten_error_dict(d: dict[str, t.Any], *, parent: str = ""):
     ret: dict[str, t.Any] = {}
 
@@ -23,8 +24,14 @@ def _flatten_error_dict(d: dict[str, t.Any], *, parent: str = ""):
 
     return ret
 
+
 class HTTPException(Exception):
-    def __init__(self, original: str | t.Optional[t.Mapping[str, t.Any]], status: int, status_msg: t.Optional[str]):
+    def __init__(
+        self,
+        original: str | t.Optional[t.Mapping[str, t.Any]],
+        status: int,
+        status_msg: t.Optional[str],
+    ):
         code: int = 0
         text: str
 
@@ -55,17 +62,21 @@ class HTTPException(Exception):
 
         super().__init__(fmt)
 
+
 class Unauthorized(HTTPException):
     def __init__(self, original: str | t.Optional[t.Mapping[str, t.Any]]):
         super().__init__(original, 401, "Unauthorized")
+
 
 class Forbidden(HTTPException):
     def __init__(self, original: str | t.Optional[t.Mapping[str, t.Any]]):
         super().__init__(original, 403, "Forbidden")
 
+
 class NotFound(HTTPException):
     def __init__(self, original: str | t.Optional[t.Mapping[str, t.Any]]):
         super().__init__(original, 404, "Not Found")
+
 
 class ServerError(HTTPException):
     pass

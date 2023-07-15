@@ -1,7 +1,8 @@
 import asyncio
-import discord_typings as dt
 import logging
 import typing as t
+
+import discord_typings as dt
 
 from ..http.auth import Auth
 from ..http.client import HTTPClient
@@ -14,6 +15,7 @@ from .shard import Shard
 __all__ = ("Manager",)
 
 _log = logging.getLogger(__name__)
+
 
 class Manager:
     def __init__(
@@ -39,7 +41,9 @@ class Manager:
         self.pending_shards: list[Shard] = []
 
     def _create_shard(self, current_id: int, *, lazy_connect: bool = True):
-        assert self._max_concurrency is not None, "max_concurrency has not been set, please start via the start method."
+        assert (
+            self._max_concurrency is not None
+        ), "max_concurrency has not been set, please start via the start method."
 
         ratelimit_key = current_id % self._max_concurrency
 
@@ -59,7 +63,7 @@ class Manager:
 
         if lazy_connect:
             asyncio.create_task(shard.connect())
-            
+
         return shard
 
     async def start(self):
@@ -67,7 +71,9 @@ class Manager:
         try:
             connection_info = await self._http.request(Route("GET", "/gateway/bot"))
         except HTTPException:
-            _log.exception("Failed to retrieve Gateway connection information, check your connection.")
+            _log.exception(
+                "Failed to retrieve Gateway connection information, check your connection."
+            )
             return
 
         session_start = connection_info["session_start_limit"]
@@ -80,8 +86,12 @@ class Manager:
 
         if remaining == 0:
             raise GatewayException("We have run out of remaining sessions for today.")
-        
-        _log.debug("Shard manager is starting, %i sessions left out of %i for today.", remaining, total)
+
+        _log.debug(
+            "Shard manager is starting, %i sessions left out of %i for today.",
+            remaining,
+            total,
+        )
         _log.debug("Shard manager will start %i shards.", len(self.shards))
 
         self.current_shards = [self._create_shard(id) for id in self.shards]
@@ -100,7 +110,7 @@ class Manager:
             raise RuntimeError("Shards are currently rescaling.")
         if self._max_concurrency is None:
             raise RuntimeError("You need to start the manager via Manager.start.")
-        
+
         self._pending_shard_count = count
         self.pending_shards.clear()
 
@@ -123,7 +133,9 @@ class Manager:
             self._pending_shard_count = None
             self.pending_shards.clear()
 
-        _log.debug("New shards have been created. We will close and replace old shards.")
+        _log.debug(
+            "New shards have been created. We will close and replace old shards."
+        )
 
         await asyncio.gather(*[s.disconnect() for s in self.current_shards])
 

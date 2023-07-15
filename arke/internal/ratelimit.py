@@ -6,6 +6,7 @@ __all__ = ("Lock", "TimePer")
 
 _log = logging.getLogger(__name__)
 
+
 class Lock(asyncio.Event):
     def __init__(self):
         super().__init__()
@@ -14,7 +15,7 @@ class Lock(asyncio.Event):
     async def __aenter__(self):
         await self.wait()
         return None
-    
+
     async def __aexit__(self, *_):
         pass
 
@@ -26,6 +27,7 @@ class Lock(asyncio.Event):
 
         self.clear()
         loop.call_later(time, self.set)
+
 
 class TimePer:
     def __init__(self, limit: int, per: float):
@@ -39,7 +41,7 @@ class TimePer:
     async def __aenter__(self):
         await self.acquire()
         return None
-    
+
     async def __aexit__(self, *_):
         pass
 
@@ -57,7 +59,7 @@ class TimePer:
                 _log.debug("Acquire has cancelled. Cleaning up.")
                 self._pending.queue.remove(future)
                 return
-            
+
         self.remaining -= 1
         _log.debug("Request has been made, %d left.", self.remaining)
 

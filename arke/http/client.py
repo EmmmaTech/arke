@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import abc
-import aiohttp
 import asyncio
 import logging
 import typing as t
 
-from ..internal.json import JSONObject, JSONArray, load_json
+import aiohttp
+
+from ..internal.json import JSONArray, JSONObject, load_json
 from .auth import Auth
-from .errors import HTTPException, Unauthorized, Forbidden, NotFound, ServerError
+from .errors import Forbidden, HTTPException, NotFound, ServerError, Unauthorized
 from .ratelimit import Bucket, Lock
 from .route import Route
 
-__all__ = ("Route", "HTTPClient", "json_or_text",)
+__all__ = (
+    "Route",
+    "HTTPClient",
+    "json_or_text",
+)
 
 _log = logging.getLogger(__name__)
 
@@ -22,17 +27,22 @@ BASE_API_URL = "https://discord.com/api/v{0}"
 BASE_GATEWAY_URL = "wss://gateway.discord.gg"
 API_VERSION = 10
 
+
 def _get_user_agent():
-    return f"DiscordBot (https://github.com/EmreTech/discord-api-wrapper, 1.0 Prototype)"
+    return (
+        f"DiscordBot (https://github.com/EmreTech/discord-api-wrapper, 1.0 Prototype)"
+    )
+
 
 def _get_base_url():
     return BASE_API_URL.format(API_VERSION)
+
 
 class BasicHTTPClient(abc.ABC):
     async def request(
         self,
         route: Route,
-        *, 
+        *,
         json: t.Optional[JSONObject | JSONArray] = None,
         query: t.Optional[dict[str, str]] = None,
         headers: t.Optional[dict[str, str]] = None,
@@ -40,10 +50,14 @@ class BasicHTTPClient(abc.ABC):
     ) -> str | JSONObject | JSONArray | None:
         pass
 
+
 class HTTPClient(BasicHTTPClient):
     def __init__(self, default_auth: Auth, *, bucket_lag: float = 0.2):
         self._http: t.Optional[aiohttp.ClientSession] = None
-        self._default_headers: dict[str, str] = {"User-Agent": _get_user_agent(), "Authorization": default_auth.header}
+        self._default_headers: dict[str, str] = {
+            "User-Agent": _get_user_agent(),
+            "Authorization": default_auth.header,
+        }
         self._base_url = _get_base_url()
         self._default_bucket_lag = bucket_lag
         self._local_to_discord: dict[str, str] = {}
@@ -53,7 +67,7 @@ class HTTPClient(BasicHTTPClient):
 
     async def __aenter__(self):
         return self
-    
+
     async def __aexit__(self, *_):
         await self.close()
 
@@ -63,7 +77,7 @@ class HTTPClient(BasicHTTPClient):
             self._http = aiohttp.ClientSession()
 
         return self._http
-    
+
     async def close(self):
         if self._http is None:
             return
@@ -75,7 +89,9 @@ class HTTPClient(BasicHTTPClient):
         pass
 
     @t.overload
-    def _get_bucket(self, key: str, *, autocreate: t.Literal[False]) -> t.Optional[Bucket]:
+    def _get_bucket(
+        self, key: str, *, autocreate: t.Literal[False]
+    ) -> t.Optional[Bucket]:
         pass
 
     def _get_bucket(self, key: str, *, autocreate: bool = True):
@@ -90,7 +106,7 @@ class HTTPClient(BasicHTTPClient):
     async def request(
         self,
         route: Route,
-        *, 
+        *,
         json: t.Optional[JSONObject | JSONArray] = None,
         query: t.Optional[dict[str, str]] = None,
         headers: t.Optional[dict[str, str]] = None,
@@ -100,7 +116,9 @@ class HTTPClient(BasicHTTPClient):
             raise TypeError("json parameter cannot be mixed with GET method!")
 
         if headers and "Authorization" in headers:
-            raise ValueError("Use the auth parameter to set authentication for this request.")
+            raise ValueError(
+                "Use the auth parameter to set authentication for this request."
+            )
 
         if not headers:
             headers = {}
@@ -136,9 +154,7 @@ class HTTPClient(BasicHTTPClient):
                 async with bucket:
                     _log.debug("The local bucket has been acquired.")
                     async with self.http.request(
-                        route.method, 
-                        self._base_url + route.formatted_url, 
-                        **params
+                        route.method, self._base_url + route.formatted_url, **params
                     ) as resp:
                         bucket.update_from(resp)
 
@@ -148,9 +164,14 @@ class HTTPClient(BasicHTTPClient):
                                 key = f"{discord_hash}:{local_bucket}"
                                 self._local_to_discord[local_bucket] = discord_hash
 
-                                _log.debug("Our bucket has migrated to %s! The new bucket will be refetched.", key)
+                                _log.debug(
+                                    "Our bucket has migrated to %s! The new bucket will be refetched.",
+                                    key,
+                                )
 
-                                if (new_bucket := self._get_bucket(key, autocreate=False)):
+                                if new_bucket := self._get_bucket(
+                                    key, autocreate=False
+                                ):
                                     bucket = new_bucket
                                 else:
                                     self._buckets[key] = bucket
@@ -160,8 +181,9 @@ class HTTPClient(BasicHTTPClient):
                         if 300 > resp.status >= 200:
                             _log.debug(
                                 "Successfully made a request to %s with status code %i and in %i "
-                                + ("try" if try_ == 1 else "tries") + ".",
-                                route.formatted_url, 
+                                + ("try" if try_ == 1 else "tries")
+                                + ".",
+                                route.formatted_url,
                                 resp.status,
                                 try_ + 1,
                             )
@@ -173,21 +195,30 @@ class HTTPClient(BasicHTTPClient):
                             return json_or_text(content, resp.content_type)
 
                         if resp.status == 429:
-                            is_global = bool(resp.headers.get("X-RateLimit-Global", False))
+                            is_global = bool(
+                                resp.headers.get("X-RateLimit-Global", False)
+                            )
                             retry_after = float(resp.headers["Retry-After"])
 
                             if is_global:
-                                _log.info("We have hit a global ratelimit! We will globally lock for %f seconds.", retry_after)
+                                _log.info(
+                                    "We have hit a global ratelimit! We will globally lock for %f seconds.",
+                                    retry_after,
+                                )
 
                                 self._global_lock.lock_for(retry_after)
                                 await self._global_lock.wait()
                             else:
-                                _log.info("Bucket %s has hit a ratelimit! We will lock for %f seconds.", key, retry_after)
+                                _log.info(
+                                    "Bucket %s has hit a ratelimit! We will lock for %f seconds.",
+                                    key,
+                                    retry_after,
+                                )
 
                                 bucket.lock_for(retry_after)
                                 await bucket.acquire(auto_lock=False)
 
-                            continue                                
+                            continue
 
                         if 500 > resp.status >= 400:
                             raw_content = await resp.text()
@@ -207,22 +238,45 @@ class HTTPClient(BasicHTTPClient):
 
                         if 600 > resp.status >= 500:
                             if resp.status in (500, 502):
-                                _log.info("We have gotten server error %i! We will retry in %i.", resp.status, 2 * try_ + 1)
+                                _log.info(
+                                    "We have gotten server error %i! We will retry in %i.",
+                                    resp.status,
+                                    2 * try_ + 1,
+                                )
                                 await asyncio.sleep(2 * try_ + 1)
                                 continue
                             raise ServerError(None, resp.status, resp.reason)
 
-        _log.error("Tried to make request to %s with method %s %d times.", route.formatted_url, route.method, MAX_RETRIES)
+        _log.error(
+            "Tried to make request to %s with method %s %d times.",
+            route.formatted_url,
+            route.method,
+            MAX_RETRIES,
+        )
 
     @t.overload
-    async def connect_gateway(self, *, url: None = None, encoding: t.Optional[t.Literal["json", "etf"]] = None, compress: t.Optional[t.Literal["zlib-stream"]] = None):
+    async def connect_gateway(
+        self,
+        *,
+        url: None = None,
+        encoding: t.Optional[t.Literal["json", "etf"]] = None,
+        compress: t.Optional[t.Literal["zlib-stream"]] = None,
+    ):
         pass
 
     @t.overload
-    async def connect_gateway(self, *, url: str, encoding: None = None, compress: None = None):
+    async def connect_gateway(
+        self, *, url: str, encoding: None = None, compress: None = None
+    ):
         pass
 
-    async def connect_gateway(self, *, url: t.Optional[str] = None, encoding: t.Optional[t.Literal["json", "etf"]] = None, compress: t.Optional[t.Literal["zlib-stream"]] = None):
+    async def connect_gateway(
+        self,
+        *,
+        url: t.Optional[str] = None,
+        encoding: t.Optional[t.Literal["json", "etf"]] = None,
+        compress: t.Optional[t.Literal["zlib-stream"]] = None,
+    ):
         params: dict[str, t.Any] = {}
         if not url:
             url = BASE_GATEWAY_URL
@@ -236,7 +290,10 @@ class HTTPClient(BasicHTTPClient):
 
         return await self.http.ws_connect(url, params=params)
 
-def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
+
+def json_or_text(
+    content: str | None, content_type: str
+) -> str | JSONObject | JSONArray | None:
     content_type = content_type.lower()
 
     if content and content_type != "":

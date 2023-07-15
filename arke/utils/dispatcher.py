@@ -13,6 +13,7 @@ BaseDispatcherListener = t.Callable[[t.Any], t.Coroutine[t.Any, t.Any, None]]
 BaseDispatcherWaitForCheck = t.Callable[[t.Any], bool]
 BaseDispatcherWaitForPair = tuple[BaseDispatcherWaitForCheck, asyncio.Future[t.Any]]
 
+
 def _completed_future():
     loop = asyncio.get_running_loop()
 
@@ -20,16 +21,23 @@ def _completed_future():
     future.set_result(None)
     return future
 
+
 class RawDispatcher(t.Generic[_T]):
     def __init__(self, event_type: type[_T], /):
         self.event_type: type[_T] = event_type
 
-        self._listeners: defaultdict[_T, list[BaseDispatcherListener]] = defaultdict(list)
-        self._wait_for_callbacks: defaultdict[_T, list[BaseDispatcherWaitForPair]] = defaultdict(list)  
+        self._listeners: defaultdict[_T, list[BaseDispatcherListener]] = defaultdict(
+            list
+        )
+        self._wait_for_callbacks: defaultdict[
+            _T, list[BaseDispatcherWaitForPair]
+        ] = defaultdict(list)
 
     def add_listener(self, listener: BaseDispatcherListener, event: _T):
         if not asyncio.iscoroutinefunction(listener):
-            raise TypeError(f"listener must be a coroutine function, not {type(listener)!r}.")
+            raise TypeError(
+                f"listener must be a coroutine function, not {type(listener)!r}."
+            )
 
         self._listeners[event].append(listener)
 
@@ -37,25 +45,38 @@ class RawDispatcher(t.Generic[_T]):
 
     def remove_listener(self, listener: BaseDispatcherListener, event: _T):
         if not asyncio.iscoroutinefunction(listener):
-            raise TypeError(f"listener must be a coroutine function, not {type(listener)!r}.")
+            raise TypeError(
+                f"listener must be a coroutine function, not {type(listener)!r}."
+            )
 
         listeners = self._listeners[event]
 
         if listener not in listeners:
-            raise ValueError(f"Listener {listener.__name__} has not been added to {event}.")
+            raise ValueError(
+                f"Listener {listener.__name__} has not been added to {event}."
+            )
 
         listeners.remove(listener)
         self._listeners[event] = listeners
 
         _log.debug("Listener %s has been removed from %s.", listener.__name__, event)
 
-    def listen(self, event: _T) -> t.Callable[[BaseDispatcherListener], BaseDispatcherListener]:
+    def listen(
+        self, event: _T
+    ) -> t.Callable[[BaseDispatcherListener], BaseDispatcherListener]:
         def wrapper(func):
             self.add_listener(func, event)
             return func
+
         return wrapper
 
-    def wait_for(self, event: _T, *, check: BaseDispatcherWaitForCheck, timeout: t.Optional[float] = 90.0):
+    def wait_for(
+        self,
+        event: _T,
+        *,
+        check: BaseDispatcherWaitForCheck,
+        timeout: t.Optional[float] = 90.0,
+    ):
         loop = asyncio.get_running_loop()
         future = loop.create_future()
 
@@ -70,7 +91,7 @@ class RawDispatcher(t.Generic[_T]):
         wait_fors = self._wait_for_callbacks.get(event, [])
 
         _log.info(
-            "%i listeners and %i wait for futures under %s will be dispatched.", 
+            "%i listeners and %i wait for futures under %s will be dispatched.",
             len(listeners),
             len(wait_fors),
             event,
@@ -97,7 +118,9 @@ class RawDispatcher(t.Generic[_T]):
 
         tasks = []
         for listener in listeners:
-            task = loop.create_task(listener(metadata), name=f"arke-dispatcher:{listener.__name__}")
+            task = loop.create_task(
+                listener(metadata), name=f"arke-dispatcher:{listener.__name__}"
+            )
             tasks.append(task)
 
         if tasks:

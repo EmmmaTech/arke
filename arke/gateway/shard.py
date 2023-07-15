@@ -1,11 +1,12 @@
-import aiohttp
 import asyncio
-import discord_typings as dt
 import logging
 import platform
 import random
 import typing as t
 import zlib
+
+import aiohttp
+import discord_typings as dt
 
 from ..http.auth import Auth
 from ..http.client import HTTPClient
@@ -18,14 +19,15 @@ __all__ = ("Shard",)
 
 _log = logging.getLogger(__name__)
 
-ZLIB_SUFFIX = b'\x00\x00\xff\xff'
+ZLIB_SUFFIX = b"\x00\x00\xff\xff"
+
 
 class Shard:
     def __init__(
-        self, 
-        auth: Auth, 
-        http: HTTPClient, 
-        *, 
+        self,
+        auth: Auth,
+        http: HTTPClient,
+        *,
         intents: int,
         identify_ratelimit: t.Optional[TimePer] = None,
         shard_id: int = 0,
@@ -67,23 +69,29 @@ class Shard:
     # gateway message handling
 
     async def send(self, payload: JSONArray | JSONObject):
-        assert self._ws is not None, "We have not connected yet! Please connect via the connect method."
+        assert (
+            self._ws is not None
+        ), "We have not connected yet! Please connect via the connect method."
 
         async with self._ratelimiter:
             raw_payload = dump_json(payload)
             await self._ws.send_str(raw_payload)
 
-            _log.debug('ID:%i Sent payload "%s" to the Gateway.', self.shard_id, raw_payload)
+            _log.debug(
+                'ID:%i Sent payload "%s" to the Gateway.', self.shard_id, raw_payload
+            )
 
     def _process_raw_msg(self, msg: aiohttp.WSMessage):
-        assert self._decompressor is not None, "The decompressor object has not been set!"
+        assert (
+            self._decompressor is not None
+        ), "The decompressor object has not been set!"
 
         if msg.type == aiohttp.WSMsgType.BINARY:
             contents = t.cast(bytes, msg.data)
 
             if len(contents) < 4 or contents[-4:] != ZLIB_SUFFIX:
                 raise ValueError("Invalid zlib encoded message sent by the Gateway!")
-            
+
             contents = self._decompressor.decompress(contents).decode()
         else:
             contents = t.cast(str, msg.data)
@@ -103,9 +111,15 @@ class Shard:
 
         if self.session_id is not None and self._resume_url is not None:
             self._ws = await self._http.connect_gateway(url=self._resume_url)
-            _log.info("ID:%i Reconnected to the Gateway with session %s.", self.shard_id, self.session_id)
+            _log.info(
+                "ID:%i Reconnected to the Gateway with session %s.",
+                self.shard_id,
+                self.session_id,
+            )
         else:
-            self._ws = await self._http.connect_gateway(encoding="json", compress="zlib-stream")
+            self._ws = await self._http.connect_gateway(
+                encoding="json", compress="zlib-stream"
+            )
             _log.info("ID:%i Connected to the Gateway.", self.shard_id)
 
         await self.event_dispatcher.dispatch("connect", None)
@@ -127,10 +141,16 @@ class Shard:
             self._heartbeat_ack_received = None
 
         if keep_session:
-            _log.info("ID:%i Disconnected from the Gateway. The session has not been deleted.", self.shard_id)
+            _log.info(
+                "ID:%i Disconnected from the Gateway. The session has not been deleted.",
+                self.shard_id,
+            )
             await self._ws.close(code=999)
         else:
-            _log.info("ID:%i Disconnected from the Gateway. The session has been deleted.", self.shard_id)
+            _log.info(
+                "ID:%i Disconnected from the Gateway. The session has been deleted.",
+                self.shard_id,
+            )
             await self._ws.close()
 
             self._resume_url = None
@@ -141,13 +161,19 @@ class Shard:
         await self.event_dispatcher.dispatch("disconnect", None)
 
     async def _connection_loop(self):
-        assert self._ws is not None, "We have not connected yet! Please connect via the connect method."
+        assert (
+            self._ws is not None
+        ), "We have not connected yet! Please connect via the connect method."
 
         async for msg in self._ws:
             processed = self._process_raw_msg(msg)
             await self.op_dispatcher.dispatch(int(processed["op"]), processed)
 
-        _log.debug("ID:%i The Gateway has closed the connection on us. We have gotten close code %s.", self.shard_id, self._ws.close_code)
+        _log.debug(
+            "ID:%i The Gateway has closed the connection on us. We have gotten close code %s.",
+            self.shard_id,
+            self._ws.close_code,
+        )
 
         code = self._ws.close_code
         if not code:
@@ -156,7 +182,9 @@ class Shard:
         await self._handle_close_code(code)
 
     async def _heartbeat_loop(self):
-        assert self._ws is not None, "We have not connected yet! Please connect via the connect method."
+        assert (
+            self._ws is not None
+        ), "We have not connected yet! Please connect via the connect method."
 
         loop = asyncio.get_running_loop()
 
@@ -183,55 +211,82 @@ class Shard:
             await self.connect()
         elif close_code == 4001:
             # normally we can reconnect for this opcode, but it's better to stop because of the internal problem
-            _log.error("Unknown Opcode (4001): This is an internal error with arke.gateway. Please open an issue on the GitHub repo.")
+            _log.error(
+                "Unknown Opcode (4001): This is an internal error with arke.gateway. Please open an issue on the GitHub repo."
+            )
             await self.disconnect(keep_session=self.should_reconnect)
             if self.should_reconnect:
                 await self.connect()
         elif close_code == 4002:
-            _log.error("Decode Error (4002): This is an internal error with arke.gateway. Please open an issue on the GitHub repo.")
+            _log.error(
+                "Decode Error (4002): This is an internal error with arke.gateway. Please open an issue on the GitHub repo."
+            )
             await self.disconnect(keep_session=self.should_reconnect)
             if self.should_reconnect:
                 await self.connect()
         elif close_code == 4003:
-            _log.error("Not Authenticated (4003): A payload was sent to the gateway before identification. Reconnecting.")
+            _log.error(
+                "Not Authenticated (4003): A payload was sent to the gateway before identification. Reconnecting."
+            )
             await self.disconnect()
             await self.connect()
         elif close_code == 4004:
             await self.disconnect()
-            raise errors.AuthenticationError("4004: Invalid authentication was provided to the Gateway.")
+            raise errors.AuthenticationError(
+                "4004: Invalid authentication was provided to the Gateway."
+            )
         elif close_code == 4005:
-            _log.error("Already Authenticated (4005): This is an internal error with arke.gateway. Please open an issue on the GitHub repo.")
+            _log.error(
+                "Already Authenticated (4005): This is an internal error with arke.gateway. Please open an issue on the GitHub repo."
+            )
             await self.disconnect(keep_session=self.should_reconnect)
             if self.should_reconnect:
                 await self.connect()
         elif close_code == 4007:
-            _log.error("Invalid Sequence (4007): Invalid sequence number was sent to the Gateway when resuming. Reconnecting.")
+            _log.error(
+                "Invalid Sequence (4007): Invalid sequence number was sent to the Gateway when resuming. Reconnecting."
+            )
             await self.disconnect()
             await self.connect()
         elif close_code == 4008:
-            _log.error("Ratelimited (4008): We have been ratelimited! Waiting for %f seconds, then reconnecting.", self._ratelimiter.per)
+            _log.error(
+                "Ratelimited (4008): We have been ratelimited! Waiting for %f seconds, then reconnecting.",
+                self._ratelimiter.per,
+            )
             await asyncio.sleep(self._ratelimiter.per)
             await self.disconnect(keep_session=True)
             await self.connect()
         elif close_code == 4009:
-            _log.error("Session Timed Out (4009): The gateway session with Discord has timed out. Reconnecting.")
+            _log.error(
+                "Session Timed Out (4009): The gateway session with Discord has timed out. Reconnecting."
+            )
             await self.disconnect()
             await self.connect()
         elif close_code == 4010:
             await self.disconnect()
-            raise errors.ShardingError("4010: An invalid shard was sent to Discord. This is an internal error with arke.gateway. Please open an issue on the GitHub repo.")
+            raise errors.ShardingError(
+                "4010: An invalid shard was sent to Discord. This is an internal error with arke.gateway. Please open an issue on the GitHub repo."
+            )
         elif close_code == 4011:
             await self.disconnect()
-            raise errors.ShardingError("4011: Discord requires this bot to enable sharding. Please set the shard count.")
+            raise errors.ShardingError(
+                "4011: Discord requires this bot to enable sharding. Please set the shard count."
+            )
         elif close_code == 4012:
             await self.disconnect()
-            raise errors.GatewayException("4012: This is an internal error with arke.gateway. Please open an issue on the GitHub repo.")
+            raise errors.GatewayException(
+                "4012: This is an internal error with arke.gateway. Please open an issue on the GitHub repo."
+            )
         elif close_code == 4013:
             await self.disconnect()
-            raise errors.IntentError("4013: Invalid intents have been sent to Discord. Please double check your intents bit flag.")
+            raise errors.IntentError(
+                "4013: Invalid intents have been sent to Discord. Please double check your intents bit flag."
+            )
         elif close_code == 4014:
             await self.disconnect()
-            raise errors.IntentError("4014: The bot has requested for intents that it does not have access to. Please enable the needed intents via the Discord Developer Portal.")
+            raise errors.IntentError(
+                "4014: The bot has requested for intents that it does not have access to. Please enable the needed intents via the Discord Developer Portal."
+            )
         else:
             await self.disconnect()
             raise errors.GatewayException(f"Invalid close code: {close_code}.")
@@ -242,7 +297,11 @@ class Shard:
         name = event["t"]
         data = event["d"]
 
-        _log.debug("ID:%i Received DISPATCH event from the Gateway with name %s.", self.shard_id, name)
+        _log.debug(
+            "ID:%i Received DISPATCH event from the Gateway with name %s.",
+            self.shard_id,
+            name,
+        )
 
         await self.event_dispatcher.dispatch(name, data)
 
@@ -251,20 +310,27 @@ class Shard:
             self.session_id = data["session_id"]
 
     async def _handle_reconnect(self, event: dt.ReconnectEvent):
-        _log.debug("ID:%i Received RECONNECT event from the Gateway. We will reconnect and keep our session.", self.shard_id)
+        _log.debug(
+            "ID:%i Received RECONNECT event from the Gateway. We will reconnect and keep our session.",
+            self.shard_id,
+        )
 
         await self.disconnect(keep_session=True)
         await self.connect()
 
     async def _handle_invalid_session(self, event: dt.InvalidSessionEvent):
         resume = event["d"]
-        
-        _log.debug("ID:%i Received INVALID_SESSION event from the Gateway.", self.shard_id)
+
+        _log.debug(
+            "ID:%i Received INVALID_SESSION event from the Gateway.", self.shard_id
+        )
 
         if self.should_reconnect:
             _log.debug(
-                "ID:%i We will reconnect and " + ("keep" if resume else "delete") + " our session.",
-                self.shard_id
+                "ID:%i We will reconnect and "
+                + ("keep" if resume else "delete")
+                + " our session.",
+                self.shard_id,
             )
 
             await self.disconnect(keep_session=resume)
@@ -279,11 +345,17 @@ class Shard:
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
 
         if self.session_id is not None:
-            _log.debug("ID:%i Gateway session %s will be resumed.", self.shard_id, self.session_id)
+            _log.debug(
+                "ID:%i Gateway session %s will be resumed.",
+                self.shard_id,
+                self.session_id,
+            )
             await self.resume()
         else:
             if self._identify_ratelimit is not None:
-                _log.debug("Shard %i will wait for the identify ratelimit.", self.shard_id)
+                _log.debug(
+                    "Shard %i will wait for the identify ratelimit.", self.shard_id
+                )
                 await self._identify_ratelimit.acquire()
 
             _log.debug("ID:%i Gateway session will begin.", self.shard_id)
@@ -292,8 +364,10 @@ class Shard:
     async def _handle_heartbeat_ack(self, event: dt.HeartbeatACKEvent):
         if not self._heartbeat_ack_received:
             return
-        
-        _log.debug("ID:%i Received HEARTBEAT_ACK event from the Gateway.", self.shard_id)
+
+        _log.debug(
+            "ID:%i Received HEARTBEAT_ACK event from the Gateway.", self.shard_id
+        )
 
         self._heartbeat_ack_received.set_result(None)
 
@@ -315,7 +389,7 @@ class Shard:
         }
 
         return await self.send(payload)
-    
+
     async def resume(self):
         if self.session_id is None and self.sequence is None:
             raise RuntimeError("There is no session with the Gateway to resume.")
