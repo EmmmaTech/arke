@@ -27,4 +27,4 @@ The name means "swift", which implies this Discord API Wrapper is fast. It proba
     - [x] Events/Dispatcher
     - [x] Ratelimiting
     - [x] Error Handling
-    - [ ] Sharding
+    - [x] Sharding
