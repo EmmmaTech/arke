@@ -1,0 +1,26 @@
+[project]
+name = "arke"
+version = "0.1.0"
+description = "Python Discord API Wrapper made from the ground up."
+authors = [
+    {name = "Emre Terzioglu", email = "emreterzioglu49@gmail.com"},
+]
+dependencies = [
+    "aiohttp<4.0,>=3.8.0",
+    "discord-typings<1.0,>=0.6.0",
+]
+requires-python = ">=3.8"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tools.black]
+line-length = 100
+include = ["arke"]
+
+[tool.isort]
+profile = "black"
