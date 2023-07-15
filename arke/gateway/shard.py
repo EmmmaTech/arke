@@ -99,8 +99,8 @@ class Shard:
             self._ws = await self._http.connect_gateway(url=self._resume_url)
             _log.info("Reconnected to the Gateway with session %s.", self.session_id)
         else:
-            _log.info("Connected to the Gateway.")
             self._ws = await self._http.connect_gateway(encoding="json", compress="zlib-stream")
+            _log.info("Connected to the Gateway.")
 
         await self.event_dispatcher.dispatch("connect", None)
         self._connection_task = asyncio.create_task(self._connection_loop())
@@ -141,6 +141,8 @@ class Shard:
             processed = self._process_raw_msg(msg)
             await self.op_dispatcher.dispatch(int(processed["op"]), processed)
 
+        _log.debug("The Gateway has closed the connection on us. We have gotten close code %s.", self._ws.close_code)
+
         code = self._ws.close_code
         if not code:
             return
@@ -165,7 +167,11 @@ class Shard:
             await asyncio.sleep(self.heartbeat_interval)
 
     async def _handle_close_code(self, close_code: int):
-        if close_code == 4000:
+        if close_code < 2000:
+            _log.error("Possible Network Error (1xxx): Reconnecting.")
+            await self.disconnect()
+            await self.connect()
+        elif close_code == 4000:
             _log.error("Unknown Error (4000): Reconnecting.")
             await self.disconnect(keep_session=True)
             await self.connect()
