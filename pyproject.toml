@@ -1,6 +1,5 @@
 [project]
 name = "arke"
-version = "0.1.0"
 description = "Python Discord API Wrapper made from the ground up."
 authors = [
     {name = "Emre Terzioglu", email = "emreterzioglu49@gmail.com"},
@@ -12,6 +11,10 @@ dependencies = [
 requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "MIT"}
+dynamic = ["version"]
+
+[tools.pdm]
+version = { source = "file", path = "arke/__about__.py" }
 
 [build-system]
 requires = ["pdm-backend"]
