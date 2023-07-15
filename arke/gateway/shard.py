@@ -203,8 +203,8 @@ class Shard:
             await self.disconnect()
             await self.connect()
         elif close_code == 4008:
-            _log.error("Ratelimited (4008): We have been ratelimited! Reconnecting.")
-            await self._ratelimiter.acquire()
+            _log.error("Ratelimited (4008): We have been ratelimited! Waiting for %f seconds, then reconnecting.", self._ratelimiter.per)
+            await asyncio.sleep(self._ratelimiter.per)
             await self.disconnect(keep_session=True)
             await self.connect()
         elif close_code == 4009:
