@@ -13,15 +13,16 @@ readme = "README.md"
 license = {text = "MIT"}
 dynamic = ["version"]
 
-[tools.pdm]
-version = { source = "file", path = "arke/__about__.py" }
+[tool.pdm.version]
+source = "file"
+path = "arke/__about__.py"
 
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 
-[tools.black]
+[tool.black]
 line-length = 100
 include = ["arke"]
 
