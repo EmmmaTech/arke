@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 import datetime
 import logging
 import typing as t

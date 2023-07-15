@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 from .auth import *
 from .client import *
 from .errors import *

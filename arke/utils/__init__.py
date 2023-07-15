@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 from .dispatcher import *
 
 __all__ = ()

@@ -28,3 +28,7 @@ The name means "swift", which implies this Discord API Wrapper is fast. It proba
     - [x] Ratelimiting
     - [x] Error Handling
     - [x] Sharding
+
+## License
+
+Arke is licensed under the MIT license. Please read the [LICENSE](./LICENSE) file for more information.

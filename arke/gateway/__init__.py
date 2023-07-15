@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 from .errors import *
 from .manager import *
 from .shard import *

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 import enum
 
 __all__ = ("AuthTypes", "Auth")
