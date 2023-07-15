@@ -14,8 +14,9 @@ license = {text = "MIT"}
 dynamic = ["version"]
 
 [tool.pdm.version]
-source = "file"
-path = "arke/__about__.py"
+source = "scm"
+write_to = "arke/_version.py"
+write_template = "__version__ = \"{}\""
 
 [build-system]
 requires = ["pdm-backend"]

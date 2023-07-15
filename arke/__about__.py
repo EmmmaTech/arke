@@ -2,9 +2,10 @@
 
 __name__ = "arke"
 __description__ = "Python Discord API Wrapper made from the ground up."
-__version__ = "0.1.0"
 
 import typing as t
+
+from ._version import __version__
 
 
 class VersionInfo(t.NamedTuple):
