@@ -1,31 +1,13 @@
 import aiohttp
-import asyncio
 import datetime
 import logging
 import typing as t
 
+from ..internal.ratelimit import Lock
+
 __all__ = ("Lock", "Bucket",)
 
 _log = logging.getLogger(__name__)
-
-class Lock(asyncio.Event):
-    async def __aenter__(self):
-        await self.wait()
-        return self
-
-    async def __aexit__(self, *_):
-        pass
-
-    def lock_for(self, time: float):
-        if not self.is_set():
-            return
-
-        self.clear()
-        asyncio.create_task(self._unlock(time))
-
-    async def _unlock(self, time: float):
-        await asyncio.sleep(time)
-        self.set()
 
 class Bucket:
     def __init__(self, lag: float = 0.2):
@@ -34,7 +16,6 @@ class Bucket:
         self.bucket: str = ""
         self.reset_after: float = 0.0
         self._lock: Lock = Lock()
-        self._lock.set()
         self.limit: int = 1
         self.remaining: int = 1
         self.reset: t.Optional[datetime.datetime] = None
@@ -43,7 +24,7 @@ class Bucket:
 
     async def __aenter__(self):
         await self.acquire()
-        return self
+        return None
     
     async def __aexit__(self, *_):
         pass

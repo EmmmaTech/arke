@@ -1,7 +1,5 @@
 import typing as t
 
-__all__ = ()
-
 T = t.TypeVar("T")
 
 # these type aliases are to properly represent the recursion of json
