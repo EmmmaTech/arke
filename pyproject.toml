@@ -1,5 +1,5 @@
 [project]
-name = "arke"
+name = "arke-discord"
 description = "Python Discord API Wrapper made from the ground up."
 authors = [
     {name = "Emre Terzioglu", email = "emreterzioglu49@gmail.com"},
@@ -24,6 +24,10 @@ classifiers = [
 readme = "README.md"
 license = {text = "MIT"}
 dynamic = ["version"]
+
+[project.urls]
+"Homepage" = "https://github.com/EmreTech/arke"
+"Bug Tracker" = "https://github.com/EmreTech/arke/issues"
 
 [tool.pdm.version]
 source = "scm"
