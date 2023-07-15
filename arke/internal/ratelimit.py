@@ -11,6 +11,13 @@ class Lock(asyncio.Event):
         super().__init__()
         self.set()
 
+    async def __aenter__(self):
+        await self.wait()
+        return None
+    
+    async def __aexit__(self, *_):
+        pass
+
     def lock_for(self, time: float):
         if not self.is_set():
             return
