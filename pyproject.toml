@@ -45,3 +45,29 @@ include = ["arke"]
 
 [tool.isort]
 profile = "black"
+
+[tool.ruff]
+line-length = 100
+select = ["F", "E", "PL"]
+exclude = [
+    ".git",
+    ".pdm-build",
+    ".venv",
+    "dist",
+]
+ignore = [
+    # star imports are checked w/ pyright
+    "F403",
+    "F405",
+
+    # black handles long lines
+    "E501",
+
+    # unnecessary rules
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    "PLR2004",
+]
+target-version = "py310"

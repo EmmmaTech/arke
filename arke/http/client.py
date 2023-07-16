@@ -9,6 +9,7 @@ import typing as t
 
 import aiohttp
 
+from ..__about__ import __version__
 from ..internal.json import JSONArray, JSONObject, load_json
 from .auth import Auth
 from .errors import Forbidden, HTTPException, NotFound, ServerError, Unauthorized
@@ -31,7 +32,7 @@ API_VERSION = 10
 
 
 def _get_user_agent():
-    return f"DiscordBot (https://github.com/EmreTech/discord-api-wrapper, 1.0 Prototype)"
+    return f"DiscordBot (https://github.com/EmreTech/discord-api-wrapper, {__version__})"
 
 
 def _get_base_url():
