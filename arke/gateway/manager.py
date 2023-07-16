@@ -11,6 +11,7 @@ from ..http.client import HTTPClient
 from ..http.errors import HTTPException
 from ..http.route import Route
 from ..internal.ratelimit import TimePer
+from ..utils.dispatcher import RawDispatcher
 from .errors import GatewayException
 from .shard import Shard
 
@@ -38,6 +39,8 @@ class Manager:
         self.intents: int = intents
         self.shards: list[int] = shards or []
         self.should_reconnect: bool = should_reconnect
+        self.op_dispatcher: RawDispatcher[int] = RawDispatcher(int)
+        self.event_dispatcher: RawDispatcher[str] = RawDispatcher(str)
 
         self.current_shards: list[Shard] = []
         self.pending_shards: list[Shard] = []
@@ -63,10 +66,21 @@ class Manager:
             should_reconnect=self.should_reconnect,
         )
 
+        shard.event_dispatcher.add_event_handler(self._on_shard_event_receive)
+        shard.op_dispatcher.add_event_handler(self._on_shard_op_receive)
+
         if lazy_connect:
             asyncio.create_task(shard.connect())
 
         return shard
+
+    async def _on_shard_op_receive(self, event: dt.GatewayEvent, op: int):
+        _log.debug("Relaying opcode %i to global op dispatcher.", op)
+        await self.op_dispatcher.dispatch(op, event)
+
+    async def _on_shard_event_receive(self, event: dt.GatewayEvent, name: str):
+        _log.debug("Relaying event %s to global event dispatcher.", name)
+        await self.event_dispatcher.dispatch(name, event)
 
     async def start(self):
         connection_info: dt.GetGatewayBotData
