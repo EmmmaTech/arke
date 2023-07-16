@@ -45,3 +45,14 @@ include = ["arke"]
 
 [tool.isort]
 profile = "black"
+
+[tool.ruff]
+line-length = 100
+select = ["F", "E", "PL"]
+exclude = [
+    ".git",
+    ".pdm-build",
+    ".venv",
+    "dist",
+]
+target-version = "py310"
