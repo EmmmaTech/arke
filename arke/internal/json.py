@@ -27,6 +27,7 @@ try:
 
     def dump_json(__obj: JSONObject | JSONArray, /) -> str:
         return orjson.dumps(__obj).decode()
+
 except ImportError:
     # load from the stdlib
     import json

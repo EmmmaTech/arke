@@ -31,7 +31,6 @@ class Bucket:
 
     async def __aenter__(self):
         await self.acquire()
-        return None
 
     async def __aexit__(self, *_):
         pass
