@@ -24,7 +24,9 @@ try:
     import orjson
 
     load_json = orjson.loads
-    dump_json = lambda __obj: orjson.dumps(__obj).decode()
+
+    def dump_json(__obj: JSONObject | JSONArray, /) -> str:
+        return orjson.dumps(__obj).decode()
 except ImportError:
     # load from the stdlib
     import json

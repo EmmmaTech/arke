@@ -2,8 +2,6 @@
 
 import typing as t
 
-from ..internal.json import JSONObject
-
 __all__ = (
     "HTTPException",
     "Unauthorized",

@@ -48,11 +48,19 @@ profile = "black"
 
 [tool.ruff]
 line-length = 100
-select = ["F", "E", "PL"]
+select = ["F", "E"]
 exclude = [
     ".git",
     ".pdm-build",
     ".venv",
     "dist",
+]
+ignore = [
+    # star imports are checked w/ pyright
+    "F403",
+    "F405",
+
+    # black handles long lines
+    "E501",
 ]
 target-version = "py310"
