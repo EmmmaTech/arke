@@ -10,6 +10,7 @@ _log = logging.getLogger(__name__)
 
 
 class Lock(asyncio.Event):
+    """Represents a basic async lock based on ``asyncio.Event``."""
     def __init__(self):
         super().__init__()
         self.set()
@@ -21,6 +22,12 @@ class Lock(asyncio.Event):
         pass
 
     def lock_for(self, time: float):
+        """Lock this bucket for a specified amount of time.
+        
+        Args:
+            time: 
+                The duration for how long this bucket should be locked for.
+        """
         if not self.is_set():
             return
 
@@ -31,7 +38,25 @@ class Lock(asyncio.Event):
 
 
 class TimePer:
+    """A ratelimiter that resets every specified period.
+    
+    Attributes:
+        limit:
+            The amount of requests that can be made in each period.
+        remaining:
+            The amount of requests left this period.
+        per:
+            How long until the period resets.
+    """
     def __init__(self, limit: int, per: float):
+        """Initalizes a TimePer ratelimiter.
+        
+        Args:
+            limit:
+                The amount of requests that can be made in each period.
+            per:
+                How long until the period resets.
+        """
         self.limit: int = limit
         self.remaining: int = limit
         self.per: float = per
@@ -46,6 +71,10 @@ class TimePer:
         pass
 
     async def acquire(self):
+        """Waits for the ratelimiter to be available.
+        
+        If there are no more remaining requests, a future is set up to wait for the next period reset.
+        """
         loop = asyncio.get_running_loop()
 
         if self.remaining == 0:
