@@ -17,7 +17,30 @@ _log = logging.getLogger(__name__)
 
 
 class Bucket:
+    """Represents a Discord ratelimit bucket.
+    
+    Attributes:
+        lag: 
+            Amount of lag to compensate for slightly outdated reset values.
+        bucket:
+            The hash for this bucket from Discord.
+        reset_after:
+            How long until this bucket resets after being exhausted.
+        limit:
+            The total amount of requests that can be made under this bucket until exhausted.
+        remaining:
+            The remaining amount of requests until this bucket is exhausted.
+        reset:
+            The precise datetime when this bucket will next reset.
+        enabled:
+            Whether this bucket is enabled.
+    """
     def __init__(self, lag: float = 0.2):
+        """Initalizes a Discord ratelimit bucket.
+        
+        Args:
+            lag: Amount of lag to compensate for slightly outdated reset values.
+        """
         self.lag: float = lag
 
         self.bucket: str = ""
@@ -26,7 +49,6 @@ class Bucket:
         self.limit: int = 1
         self.remaining: int = 1
         self.reset: t.Optional[datetime.datetime] = None
-        self.bucket: str = ""
         self.enabled: bool = True
 
     async def __aenter__(self):
@@ -36,6 +58,12 @@ class Bucket:
         pass
 
     def update_from(self, response: aiohttp.ClientResponse):
+        """Update this bucket from the latest REST API response.
+        
+        Args:
+            response: 
+                The REST API response to update from.
+        """
         headers = response.headers
 
         if not self.enabled:
@@ -78,6 +106,12 @@ class Bucket:
             self.reset_after += self.lag
 
     def lock_for(self, time: float):
+        """Lock this bucket for a specified amount of time.
+        
+        Args:
+            time: 
+                The duration for how long this bucket should be locked for.
+        """
         if not self._lock.is_set():
             return
 
@@ -85,6 +119,12 @@ class Bucket:
         self._lock.lock_for(time)
 
     async def acquire(self, *, auto_lock: bool = True):
+        """Waits for the bucket to be available.
+        
+        Args:
+            auto_lock: 
+                Whether the bucket should auto-lock if there are no more requests left.
+        """
         if self.remaining == 0 and auto_lock:
             _log.debug("Bucket %s will be auto-locked.", self.bucket)
             self.lock_for(self.reset_after)

@@ -40,6 +40,8 @@ def _get_base_url():
 
 
 class BasicHTTPClient(abc.ABC):
+    """Represents a base HTTP client."""
+
     async def request(
         self,
         route: Route,
@@ -53,7 +55,19 @@ class BasicHTTPClient(abc.ABC):
 
 
 class HTTPClient(BasicHTTPClient):
+    """Represents an HTTP client that interacts with Discord's REST API."""
+
     def __init__(self, default_auth: Auth, *, bucket_lag: float = 0.2):
+        """Initalizes an HTTP client.
+        
+        Args:
+            default_auth: 
+                The default authentication to use for requests.
+                This can be overridden per request, if needed.
+            bucket_lag:
+                Amount of lag to compensate for slightly outdated reset values.
+        """
+
         self._http: t.Optional[aiohttp.ClientSession] = None
         self._default_headers: dict[str, str] = {
             "User-Agent": _get_user_agent(),
@@ -74,12 +88,14 @@ class HTTPClient(BasicHTTPClient):
 
     @property
     def http(self):
+        """The HTTP session used for requests. Automatically regenerated when needed."""
         if self._http is None:
             self._http = aiohttp.ClientSession()
 
         return self._http
 
     async def close(self):
+        """Closes the HTTP session. If the HTTP session is not set, nothing will happen."""
         if self._http is None:
             return
 
@@ -111,8 +127,29 @@ class HTTPClient(BasicHTTPClient):
         headers: t.Optional[dict[str, str]] = None,
         auth: t.Optional[Auth] = None,
     ):
+        """Makes a request with the Discord REST API.
+        
+        Args:
+            route:
+                The route that the request should be made to.
+            json:
+                The json payload provided with this request.
+            query:
+                The query parameters for the url.
+            headers:
+                Custom headers for this request only.
+            auth:
+                Custom authentication for this request only.
+
+        Returns:
+            A string, json payload, or nothing depending on what Discord responded with.
+
+        Raises:
+            ValueError:
+                json parameter is set with GET request method or authentication manually set in custom headers.
+        """
         if route.method == "GET" and json:
-            raise TypeError("json parameter cannot be mixed with GET method!")
+            raise ValueError("json parameter cannot be mixed with GET method!")
 
         if headers and "Authorization" in headers:
             raise ValueError("Use the auth parameter to set authentication for this request.")
@@ -268,6 +305,22 @@ class HTTPClient(BasicHTTPClient):
         encoding: t.Optional[t.Literal["json", "etf"]] = None,
         compress: t.Optional[t.Literal["zlib-stream"]] = None,
     ):
+        """Makes the initial request with the Gateway.
+        
+        Args:
+            url:
+                The url to connect with. 
+                This cannot be mixed with the `encoding` and `compress` parameters.
+            encoding:
+                The encoding to use for this connection.
+                This cannot be mixed with the `url` parameter.
+            compress:
+                Whether compression will be enabled for this connection.
+                This cannot be mixed with the `url` parameter.
+
+        Returns:
+            An aiohttp websocket object connected to the Gateway.
+        """
         params: dict[str, t.Any] = {}
         if not url:
             url = BASE_GATEWAY_URL
@@ -283,6 +336,17 @@ class HTTPClient(BasicHTTPClient):
 
 
 def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
+    """Parses content into text or a json payload.
+    
+    Args:
+        content:
+            The content to parse.
+        content_type:
+            The type of the content from the response.
+    
+    Returns:
+        A string, json payload, or nothing depending on what the content type is.
+    """
     content_type = content_type.lower()
 
     if content and content_type != "":

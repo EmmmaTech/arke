@@ -21,6 +21,24 @@ _log = logging.getLogger(__name__)
 
 
 class Manager:
+    """A manager that handles multiple shards.
+
+    Attributes:
+        intents: 
+            The intents that will be used for each shard.
+        shards: 
+            The id of every shard this manager will handle.
+        should_reconnect: 
+            Whether every shard should reconnect when an error occurs.
+        op_dispatcher: 
+            The unified dispatcher for every opcode received by each shard.
+        event_dispatcher: 
+            The unified dispatcher for every event received by each shard.
+        current_shards: 
+            The current shards this manager has spawned.
+        pending_shards: 
+            The pending shards this manager is currently spawning.
+    """
     def __init__(
         self,
         auth: Auth,
@@ -30,6 +48,21 @@ class Manager:
         shards: t.Optional[list[int]] = None,
         should_reconnect: bool = True,
     ):
+        """Initalizes a shard manager.
+        
+        Args:
+            auth: 
+                The authentication to use for each shard.
+            http: 
+                The HTTP client to use for each shard.
+            intents: 
+                The intents to use for each shard.
+            shards: 
+                Every shard id this manager will handle.
+                If set to ``None``, the manager will use Discord's recommendation.
+            should_reconnect: 
+                Whether every shard should reconnect when an error occurs.
+        """
         self._auth: Auth = auth
         self._http: HTTPClient = http
         self._max_concurrency: t.Optional[int] = None
@@ -83,6 +116,10 @@ class Manager:
         await self.event_dispatcher.dispatch(name, event)
 
     async def start(self):
+        """Starts every shard specified.
+        
+        If you set the `shards` parameter to ``None`` when initalizing, Discord's recommendation will be used.
+        """
         connection_info: dt.GetGatewayBotData
         try:
             connection_info = await self._http.request(Route("GET", "/gateway/bot"))
@@ -113,6 +150,7 @@ class Manager:
         self.current_shards = [self._create_shard(id) for id in self.shards]
 
     async def close(self):
+        """Safely closes every shard."""
         for shard in self.current_shards:
             await shard.disconnect()
         for shard in self.pending_shards:
@@ -122,6 +160,14 @@ class Manager:
         self.pending_shards.clear()
 
     async def rescale(self, count: int):
+        """Rescales the amount of shards.
+
+        Args:
+            count: The amount of shards this manager should now handle.
+
+        Raises:
+            RuntimeError: The shards are already recaling or the manager has not been started.
+        """
         if self._pending_shard_count is not None:
             raise RuntimeError("Shards are currently rescaling.")
         if self._max_concurrency is None:

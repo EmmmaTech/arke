@@ -11,7 +11,29 @@ HTTP_METHODS = t.Literal["GET", "POST", "PATCH", "PUT", "DELETE"]
 
 
 class Route:
+    """Represents a route to the REST API.
+    
+    Attributes:
+        method: 
+            The method to use when requesting.
+            Can be one of the following: GET, POST, PATCH, PUT, DELETE
+        url:
+            The url of the route.
+        params:
+            Additional parameters that will be formatted into the url.
+    """
     def __init__(self, method: HTTP_METHODS, url: str, **params: t.Any):
+        """Initalizes a REST API route.
+        
+        Args:
+            method: 
+                The method to use when requesting.
+                Can be one of the following: GET, POST, PATCH, PUT, DELETE
+            url:
+                The url of the route.
+            **params:
+                Additional parameters that will be formatted into the url.
+        """
         self.method: HTTP_METHODS = method
         self.url: str = url
         self._orig_params: dict[str, t.Any] = params
@@ -21,10 +43,16 @@ class Route:
 
     @property
     def formatted_url(self):
+        """The url of this route, formatted with additonal parameters."""
         return self.url.format_map(self.params)
 
     @property
     def bucket(self):
+        """The local bucket representation of this route.
+        
+        This is used primarily for ratelimiting, when a route doesn't have a 
+        Discord bucket hash yet.
+        """
         top_level_params = {
             k: v
             for k, v in self.params.items()

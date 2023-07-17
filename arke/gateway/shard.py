@@ -25,6 +25,28 @@ ZLIB_SUFFIX = b"\x00\x00\xff\xff"
 
 
 class Shard:
+    """Represents a shard of the Discord Gateway.
+    
+    Attributes:
+        op_dispatcher:
+            The dispatcher for any opcode received.
+        event_dispatcher:
+            The dispatcher for any event received.
+        shard_id:
+            The id of this shard.
+        shard_count:
+            The total amount of shards the parent manager handles.
+        should_reconnect:
+            Whether this shard should reconnect when an error occurs.
+        intents:
+            The intents for this shard.
+        heartbeat_interval:
+            The interval at which heartbeats are sent.
+        sequence:
+            The sequence number of the last Gateway payload, if any.
+        session_id:
+            The id of the session with the Gateway, if any.
+    """
     def __init__(
         self,
         auth: Auth,
@@ -36,6 +58,24 @@ class Shard:
         shard_count: int = 1,
         should_reconnect: bool = True,
     ):
+        """Initalizes a shard.
+        
+        Args:
+            auth: 
+                The authentication to use for this shard.
+            http: 
+                The HTTP client to use for this shard.
+            intents: 
+                The intents to use for this shard.
+            identify_ratelimit:
+                The ratelimit for identifiying for this shard.
+            shard_id:
+                The id for this shard.
+            shard_count:
+                The total amount of shards the parent manager handles.
+            should_reconnect: 
+                Whether every shard should reconnect when an error occurs.
+        """
         self._auth: Auth = auth
         self._http: HTTPClient = http
         self._ws: t.Optional[aiohttp.ClientWebSocketResponse] = None
@@ -71,9 +111,16 @@ class Shard:
     # gateway message handling
 
     async def send(self, payload: JSONArray | JSONObject):
-        assert (
-            self._ws is not None
-        ), "We have not connected yet! Please connect via the connect method."
+        """Sends a payload to the Gateway.
+        
+        Args:
+            payload: The JSON payload to send.
+        
+        Raises:
+            RuntimeError: There is no connection with the Gateway.
+        """
+        if self._ws is None:
+            raise RuntimeError("We have not connected yet! Please connect via the connect method.")
 
         async with self._ratelimiter:
             raw_payload = dump_json(payload)
@@ -105,6 +152,11 @@ class Shard:
     # gateway connection
 
     async def connect(self):
+        """Establishes a connection to the Gateway.
+        
+        If this shard has previously connected to the Gateway and kept its session, it will
+        automatically connect via the resume url.
+        """
         self._decompressor = zlib.decompressobj()
 
         if self.session_id is not None and self._resume_url is not None:
@@ -122,7 +174,16 @@ class Shard:
         self._connection_task = asyncio.create_task(self._connection_loop())
 
     async def disconnect(self, *, keep_session: bool = False):
-        assert self._ws is not None, "We have not connected yet!"
+        """Safely closes the connection with the Gateway.
+        
+        Args:
+            keep_session: Whether the session should be kept.
+
+        Raises:
+            RuntimeError: There is no connection with the Gateway.
+        """
+        if self._ws is None:
+            raise RuntimeError("We have not connected yet!")
 
         if self._connection_task:
             self._connection_task.cancel()
@@ -362,6 +423,7 @@ class Shard:
     # payloads
 
     async def identify(self):
+        """Sends an identify payload to the Gateway."""
         payload = {
             "op": 2,
             "d": {
@@ -379,6 +441,7 @@ class Shard:
         return await self.send(payload)
 
     async def resume(self):
+        """Sends a resume payload to the Gateway."""
         if self.session_id is None and self.sequence is None:
             raise RuntimeError("There is no session with the Gateway to resume.")
 

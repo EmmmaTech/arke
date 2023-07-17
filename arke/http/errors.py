@@ -26,12 +26,20 @@ def _flatten_error_dict(d: dict[str, t.Any], *, parent: str = ""):
 
 
 class HTTPException(Exception):
+    """The base for all HTTP related errors."""
     def __init__(
         self,
         original: str | t.Optional[t.Mapping[str, t.Any]],
         status: int,
         status_msg: t.Optional[str],
     ):
+        """Initalizes an HTTP exception.
+        
+        Args:
+            original: The original message from Discord.
+            status: The status code of the response.
+            status_msg: The status message of the response.
+        """
         code: int = 0
         text: str
 
@@ -64,19 +72,23 @@ class HTTPException(Exception):
 
 
 class Unauthorized(HTTPException):
+    """The authentication was not provided or was invalid."""
     def __init__(self, original: str | t.Optional[t.Mapping[str, t.Any]]):
         super().__init__(original, 401, "Unauthorized")
 
 
 class Forbidden(HTTPException):
+    """The authentication provided does not have access to this resource."""
     def __init__(self, original: str | t.Optional[t.Mapping[str, t.Any]]):
         super().__init__(original, 403, "Forbidden")
 
 
 class NotFound(HTTPException):
+    """The resource specified does not exist."""
     def __init__(self, original: str | t.Optional[t.Mapping[str, t.Any]]):
         super().__init__(original, 404, "Not Found")
 
 
 class ServerError(HTTPException):
+    """An unknown server error has occured with Discord."""
     pass
