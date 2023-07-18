@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: MIT
 
-from __future__ import annotations
-
 import abc
 import asyncio
 import logging
@@ -317,7 +315,7 @@ class HTTPClient(BasicHTTPClient):
                 This cannot be mixed with the `url` parameter.
 
         Returns:
-            An aiohttp websocket object connected to the Gateway.
+            An :class:`aiohttp.ClientWebSocketResponse` object connected to the Gateway.
         """
         params: dict[str, t.Any] = {}
         if not url:
