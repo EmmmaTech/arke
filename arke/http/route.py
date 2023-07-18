@@ -30,11 +30,15 @@ class Route:
         params:
             Additional parameters that will be formatted into the url.
     """
+    method: HTTP_METHODS
+    url: str
+    params: dict[str, str]
+
     def __init__(self, method: HTTP_METHODS, url: str, **params: t.Any):
-        self.method: HTTP_METHODS = method
-        self.url: str = url
+        self.method = method
+        self.url = url
         self._orig_params: dict[str, t.Any] = params
-        self.params: dict[str, str] = {
+        self.params = {
             k: urlparse.quote(str(v)) for k, v in self._orig_params.items()
         }
 

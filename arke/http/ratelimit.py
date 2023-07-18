@@ -39,16 +39,24 @@ class Bucket:
         enabled:
             Whether this bucket is enabled.
     """
-    def __init__(self, lag: float = 0.2):
-        self.lag: float = lag
+    lag: float
+    bucket: str
+    reset_after: float
+    limit: int
+    remaining: int
+    reset: t.Optional[datetime.datetime]
+    enabled: bool
 
-        self.bucket: str = ""
-        self.reset_after: float = 0.0
+    def __init__(self, lag: float = 0.2):
+        self.lag = lag
+
+        self.bucket = ""
+        self.reset_after = 0.0
         self._lock: Lock = Lock()
-        self.limit: int = 1
-        self.remaining: int = 1
-        self.reset: t.Optional[datetime.datetime] = None
-        self.enabled: bool = True
+        self.limit = 1
+        self.remaining = 1
+        self.reset = None
+        self.enabled = True
 
     async def __aenter__(self):
         await self.acquire()

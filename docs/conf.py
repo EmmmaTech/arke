@@ -46,6 +46,7 @@ autodoc_type_aliases = {
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
+    "aiohttp": ("https://docs.aiohttp.org/en/stable/", None),
 }
 
 # -- Napoleon Config --

@@ -16,6 +16,5 @@ API Reference
 
 .. toctree::
    :maxdepth: 2
-   :caption: HTTP Reference
 
    api/http
