@@ -29,11 +29,6 @@ dynamic = ["version"]
 "Homepage" = "https://github.com/EmreTech/arke"
 "Bug Tracker" = "https://github.com/EmreTech/arke/issues"
 
-[tool.pdm.version]
-source = "scm"
-write_to = "arke/_version.py"
-write_template = "__version__ = \"{}\""
-
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
@@ -71,3 +66,14 @@ ignore = [
     "PLR2004",
 ]
 target-version = "py310"
+
+[tool.pdm.version]
+source = "scm"
+write_to = "arke/_version.py"
+write_template = "__version__ = \"{}\""
+
+[tool.pdm.dev-dependencies]
+docs = [
+    "sphinx>=7.0.1,<8",
+    "furo>=2023.5.20",
+]
