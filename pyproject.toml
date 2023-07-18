@@ -76,4 +76,5 @@ write_template = "__version__ = \"{}\""
 docs = [
     "sphinx>=7.0.1,<8",
     "furo>=2023.5.20",
+    "sphinx-autobuild>=2021.3.14",
 ]
