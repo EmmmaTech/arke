@@ -51,9 +51,15 @@ class Event:
 @dataclasses.dataclass(kw_only=True)
 class ExceptionEvent(t.Generic[_EventT], Event):
     """The base exception event for failed events."""
+
     exception: Exception
+    """The exception raised by the listener."""
+
     failed_event: _EventT 
+    """The event that failed to dispatch."""
+
     failed_listener: GenericTypedDispatcherListener[_EventT]
+    """The listener that failed to run."""
 
 
 class TypedDispatcher:

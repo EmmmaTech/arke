@@ -18,3 +18,4 @@ API Reference
    :maxdepth: 2
 
    api/http
+   api/utils
