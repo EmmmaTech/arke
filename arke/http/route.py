@@ -13,27 +13,24 @@ HTTP_METHODS = t.Literal["GET", "POST", "PATCH", "PUT", "DELETE"]
 class Route:
     """Represents a route to the REST API.
     
-    Attributes:
+    Args:
         method: 
             The method to use when requesting.
-            Can be one of the following: GET, POST, PATCH, PUT, DELETE
+            Can be one of the following: ``GET, POST, PATCH, PUT, DELETE``
+        url:
+            The url of the route.
+        **params:
+            Additional parameters that will be formatted into the url.
+
+    Attributes:
+        method: 
+            The method that will be used.
         url:
             The url of the route.
         params:
             Additional parameters that will be formatted into the url.
     """
     def __init__(self, method: HTTP_METHODS, url: str, **params: t.Any):
-        """Initalizes a REST API route.
-        
-        Args:
-            method: 
-                The method to use when requesting.
-                Can be one of the following: GET, POST, PATCH, PUT, DELETE
-            url:
-                The url of the route.
-            **params:
-                Additional parameters that will be formatted into the url.
-        """
         self.method: HTTP_METHODS = method
         self.url: str = url
         self._orig_params: dict[str, t.Any] = params

@@ -1,7 +1,16 @@
 # SPDX-License-Identifier: MIT
 
+__all__ = (
+    "__name__", 
+    "__copyright__",
+    "__author__",
+    "__version__", 
+    "version_info",
+)
+
 __name__ = "arke"
-__description__ = "Python Discord API Wrapper made from the ground up."
+__copyright__ = "2023 EmreTech"
+__author__ = "EmreTech"
 
 import typing as t
 

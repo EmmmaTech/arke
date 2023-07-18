@@ -21,6 +21,10 @@ class Auth:
     
     The key is used to properly log into your bot account or use your bearer token.
 
+    Args:
+        type: The type of authentication.
+        token: The authentication key.
+
     Attributes:
         type: The type of authentication.
         token: The authentication key.
@@ -30,12 +34,6 @@ class Auth:
     token: str
 
     def __init__(self, *, type: AuthTypes, token: str):
-        """Initalizes an authentication key.
-        
-        Args:
-            type: The type of authentication.
-            token: The authentication key.
-        """
         self.type = type
         self.token = token
 

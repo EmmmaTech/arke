@@ -55,19 +55,17 @@ class BasicHTTPClient(abc.ABC):
 
 
 class HTTPClient(BasicHTTPClient):
-    """Represents an HTTP client that interacts with Discord's REST API."""
+    """Represents an HTTP client that interacts with Discord's REST API.
+
+    Args:
+        default_auth: 
+            The default authentication to use for requests.
+            This can be overridden per request, if needed.
+        bucket_lag:
+            Amount of lag to compensate for slightly outdated reset values.
+    """
 
     def __init__(self, default_auth: Auth, *, bucket_lag: float = 0.2):
-        """Initalizes an HTTP client.
-        
-        Args:
-            default_auth: 
-                The default authentication to use for requests.
-                This can be overridden per request, if needed.
-            bucket_lag:
-                Amount of lag to compensate for slightly outdated reset values.
-        """
-
         self._http: t.Optional[aiohttp.ClientSession] = None
         self._default_headers: dict[str, str] = {
             "User-Agent": _get_user_agent(),

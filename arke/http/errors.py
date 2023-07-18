@@ -26,20 +26,19 @@ def _flatten_error_dict(d: dict[str, t.Any], *, parent: str = ""):
 
 
 class HTTPException(Exception):
-    """The base for all HTTP related errors."""
+    """The base for all HTTP related errors.
+    
+    Args:
+        original: The original message from Discord.
+        status: The status code of the response.
+        status_msg: The status message of the response.
+    """
     def __init__(
         self,
         original: str | t.Optional[t.Mapping[str, t.Any]],
         status: int,
         status_msg: t.Optional[str],
     ):
-        """Initalizes an HTTP exception.
-        
-        Args:
-            original: The original message from Discord.
-            status: The status code of the response.
-            status_msg: The status message of the response.
-        """
         code: int = 0
         text: str
 

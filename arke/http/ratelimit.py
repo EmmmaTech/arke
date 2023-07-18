@@ -19,6 +19,10 @@ _log = logging.getLogger(__name__)
 class Bucket:
     """Represents a Discord ratelimit bucket.
     
+    Args:
+        lag:
+            Amount of lag to compensate for slightly outdated reset values.
+
     Attributes:
         lag: 
             Amount of lag to compensate for slightly outdated reset values.
@@ -36,11 +40,6 @@ class Bucket:
             Whether this bucket is enabled.
     """
     def __init__(self, lag: float = 0.2):
-        """Initalizes a Discord ratelimit bucket.
-        
-        Args:
-            lag: Amount of lag to compensate for slightly outdated reset values.
-        """
         self.lag: float = lag
 
         self.bucket: str = ""
