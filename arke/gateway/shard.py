@@ -12,7 +12,7 @@ import discord_typings as dt
 
 from ..http.auth import Auth
 from ..http.client import HTTPClient
-from ..internal.json import JSONArray, JSONObject, dump_json, load_json
+from ..internal.json import JSONable, dump_json, load_json
 from ..internal.ratelimit import TimePer
 from ..utils.dispatcher import RawDispatcher
 from . import errors
@@ -70,7 +70,7 @@ class Shard:
 
     # gateway message handling
 
-    async def send(self, payload: JSONArray | JSONObject):
+    async def send(self, payload: JSONable):
         assert (
             self._ws is not None
         ), "We have not connected yet! Please connect via the connect method."
