@@ -5,7 +5,7 @@ import logging
 import typing as t
 from collections import defaultdict
 
-from ...internal.async_utils import gather_optionally
+from ...internal.async_utils import gather_optionally, completed_future
 
 __all__ = ("RawDispatcher",)
 
@@ -191,7 +191,7 @@ class RawDispatcher(t.Generic[_T]):
 
         if not listeners and not handlers and not wait_fors:
             _log.info("Nothing to dispatch under event %s.", event)
-            return
+            return completed_future()
 
         _log.info(
             "%i listener(s), %i event handler(s), and %i waiter(s) under %s will be dispatched.",

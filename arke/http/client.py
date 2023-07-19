@@ -8,7 +8,7 @@ import typing as t
 import aiohttp
 
 from ..__about__ import __version__
-from ..internal.json import JSONArray, JSONObject, load_json
+from ..internal.json import JSONable, load_json
 from .auth import Auth
 from .errors import Forbidden, HTTPException, NotFound, ServerError, Unauthorized
 from .ratelimit import Bucket, Lock
@@ -44,11 +44,11 @@ class BasicHTTPClient(abc.ABC):
         self,
         route: Route,
         *,
-        json: t.Optional[JSONObject | JSONArray] = None,
+        json: t.Optional[JSONable] = None,
         query: t.Optional[dict[str, str]] = None,
         headers: t.Optional[dict[str, str]] = None,
         auth: t.Optional[Auth] = None,
-    ) -> str | JSONObject | JSONArray | None:
+    ) -> str | JSONable | None:
         pass
 
 
@@ -118,7 +118,7 @@ class HTTPClient(BasicHTTPClient):
         self,
         route: Route,
         *,
-        json: t.Optional[JSONObject | JSONArray] = None,
+        json: t.Optional[JSONable] = None,
         query: t.Optional[dict[str, str]] = None,
         headers: t.Optional[dict[str, str]] = None,
         auth: t.Optional[Auth] = None,
@@ -331,7 +331,7 @@ class HTTPClient(BasicHTTPClient):
         return await self.http.ws_connect(url, params=params)
 
 
-def json_or_text(content: str | None, content_type: str) -> str | JSONObject | JSONArray | None:
+def json_or_text(content: str | None, content_type: str) -> str | JSONable | None:
     """Parses content into text or a json payload.
     
     Args:
