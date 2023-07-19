@@ -6,7 +6,7 @@ Dispatchers
 
 Dispatchers are special classes that handle running code when other portions of code dispatch an event.
 
-There are two types of dispatchers that arke defines.
+There are two types of dispatchers that Arke defines.
 
 Raw Dispatcher
 ^^^^^^^^^^^^^^
