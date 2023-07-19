@@ -19,3 +19,4 @@ API Reference
 
    api/http
    api/utils
+   api/internals

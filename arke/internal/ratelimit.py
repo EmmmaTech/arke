@@ -40,6 +40,12 @@ class Lock(asyncio.Event):
 class TimePer:
     """A ratelimiter that resets every specified period.
     
+    Args:
+        limit:
+            The amount of requests that can be made in each period.
+        per:
+            How long until the period resets.
+
     Attributes:
         limit:
             The amount of requests that can be made in each period.
@@ -48,18 +54,15 @@ class TimePer:
         per:
             How long until the period resets.
     """
+
+    limit: int
+    remaining: int
+    per: float
+
     def __init__(self, limit: int, per: float):
-        """Initalizes a TimePer ratelimiter.
-        
-        Args:
-            limit:
-                The amount of requests that can be made in each period.
-            per:
-                How long until the period resets.
-        """
-        self.limit: int = limit
-        self.remaining: int = limit
-        self.per: float = per
+        self.limit = limit
+        self.remaining = limit
+        self.per = per
 
         self._pending: queue.Queue[asyncio.Future[None]] = queue.Queue(limit)
         self._pending_reset: bool = False

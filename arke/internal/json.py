@@ -6,6 +6,7 @@ import typing as t
 T = t.TypeVar("T")
 
 JSONable = str | int | float | bool | None | t.Sequence["JSONable"] | t.Mapping[str, "JSONable"]
+"""A type alias that explictly defines an object that complies with the JSON spec."""
 
 @t.runtime_checkable
 class _JSONLoader(t.Protocol):
@@ -44,6 +45,16 @@ def load_json_serializers(
     loader: str | _JSONLoader,
     dumper: str | _JSONDumper,
 ):
+    """Loads json serializers either from a module or from loader & dumper callables.
+    
+    Args:
+        module: The module to load from, if applicable.
+        loader: The name of the loader callable or the loader callable itself.
+        loader: The name of the dumper callable or the dumper callable itself.
+
+    Raises:
+        ValueError: The wrong parameters were passed in.
+    """
     global load_json, dump_json
 
     if module is not None:
